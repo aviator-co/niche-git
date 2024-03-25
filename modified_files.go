@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/aviator-co/niche-git/internal/fetch"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/packfile"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -25,7 +26,7 @@ type FetchModifiedFilesDebugInfo struct {
 
 // FetchModifiedFiles returns the list of files that were modified between two commits.
 func FetchModifiedFiles(repoURL string, client *http.Client, commitHash1, commitHash2 string) ([]string, *FetchModifiedFilesDebugInfo, error) {
-	packfilebs, headers, err := FetchBlobNonePackfile(repoURL, client, []string{commitHash1, commitHash2})
+	packfilebs, headers, err := fetch.FetchBlobNonePackfile(repoURL, client, []string{commitHash1, commitHash2})
 	debugInfo := &FetchModifiedFilesDebugInfo{
 		PackfileSize:    len(packfilebs),
 		ResponseHeaders: headers,

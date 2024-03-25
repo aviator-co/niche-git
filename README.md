@@ -30,6 +30,15 @@ go run cmd/niche-git/main.go get-modified-files \
     --basic-authz-password "$(gh auth token)"
 ```
 
+### Get commits
+
+```bash
+go run cmd/niche-git/main.go get-commits \
+    --repo-url https://github.com/git/git \
+    --want-commit-hashes 3c2a3fdc388747b9eaf4a4a4f2035c1c9ddb26d0 \
+    --have-commit-hashes efb050becb6bc703f76382e1f1b6273100e6ace3
+```
+
 ## Adding a license header
 
 ```bash

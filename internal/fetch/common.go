@@ -1,7 +1,7 @@
 // Copyright 2024 Aviator Technologies, Inc.
 // SPDX-License-Identifier: MIT
 
-package nichegit
+package fetch
 
 import (
 	"bytes"
@@ -13,19 +13,12 @@ import (
 	"github.com/google/gitprotocolio"
 )
 
-type FetchModifiedFilesResponse struct {
-	ModifiedFiles  []string
-	PackfileSize   int
-	ResponseHeader http.Header
-}
-
-// FetchBlobNonePackfile fetches a packfile from a remote repository without blobs.
-func FetchBlobNonePackfile(repoURL string, client *http.Client, oids []string) ([]byte, http.Header, error) {
+func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]byte, http.Header, error) {
 	upURL, err := buildUploadPackURL(repoURL)
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest("POST", upURL, createFetchRequest(oids))
+	req, err := http.NewRequest("POST", upURL, body)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -79,48 +72,6 @@ func FetchBlobNonePackfile(repoURL string, client *http.Client, oids []string) (
 
 	}
 	return packfile.Bytes(), resp.Header, v2Resp.Err()
-}
-
-func createFetchRequest(oids []string) *bytes.Buffer {
-	chunks := []*gitprotocolio.ProtocolV2RequestChunk{
-		{
-			Command: "fetch",
-		},
-		{
-			EndCapability: true,
-		},
-	}
-	for _, oid := range oids {
-		chunks = append(chunks, &gitprotocolio.ProtocolV2RequestChunk{
-			Argument: []byte("want " + oid),
-		})
-	}
-	chunks = append(chunks,
-		&gitprotocolio.ProtocolV2RequestChunk{
-			Argument: []byte("no-progress"),
-		},
-		&gitprotocolio.ProtocolV2RequestChunk{
-			Argument: []byte("deepen 1"),
-		},
-		&gitprotocolio.ProtocolV2RequestChunk{
-			Argument: []byte("filter blob:none"),
-		},
-		&gitprotocolio.ProtocolV2RequestChunk{
-			Argument: []byte("done"),
-		},
-		&gitprotocolio.ProtocolV2RequestChunk{
-			EndArgument: true,
-		},
-		&gitprotocolio.ProtocolV2RequestChunk{
-			EndRequest: true,
-		},
-	)
-	bs := bytes.NewBuffer(nil)
-	for _, chunk := range chunks {
-		// Not possible to fail.
-		bs.Write(chunk.EncodeToPktLine())
-	}
-	return bs
 }
 
 func buildUploadPackURL(repoURL string) (string, error) {
