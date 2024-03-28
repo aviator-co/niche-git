@@ -39,6 +39,14 @@ go run cmd/niche-git/main.go get-commits \
     --have-commit-hashes efb050becb6bc703f76382e1f1b6273100e6ace3
 ```
 
+### List refs
+
+```bash
+go run cmd/niche-git/main.go ls-refs \
+    --repo-url https://github.com/git/git \
+    --ref-prefixes refs/heads/
+```
+
 ## Adding a license header
 
 ```bash

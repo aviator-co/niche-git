@@ -25,6 +25,10 @@ var getCommitsCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := &http.Client{Transport: &authnRoundtripper{}}
 		commits, debugInfo, fetchErr := nichegit.FetchCommits(getCommitsArgs.repoURL, client, getCommitsArgs.wantCommitHashes, getCommitsArgs.haveCommitHashes)
+		if commits == nil {
+			// Always create an empty slice for JSON output.
+			commits = []*nichegit.CommitInfo{}
+		}
 		output := getCommitsOutput{
 			Commits:         commits,
 			ResponseHeaders: debugInfo.ResponseHeaders,
