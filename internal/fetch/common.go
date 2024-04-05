@@ -10,6 +10,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/google/gitprotocolio"
 )
@@ -61,6 +64,16 @@ func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]b
 }
 
 func callProtocolV2(repoURL string, client *http.Client, body *bytes.Buffer) (io.ReadCloser, http.Header, error) {
+	if strings.HasPrefix(repoURL, "http") {
+		return callProtocolV2HTTP(repoURL, client, body)
+	} else if strings.HasPrefix(repoURL, "file") {
+		rd, err := callProtocolV2File(repoURL, body)
+		return rd, http.Header{}, err
+	}
+	return nil, nil, errors.New("unsupported protocol")
+}
+
+func callProtocolV2HTTP(repoURL string, client *http.Client, body *bytes.Buffer) (io.ReadCloser, http.Header, error) {
 	upURL, err := buildUploadPackURL(repoURL)
 	if err != nil {
 		return nil, nil, err
@@ -81,6 +94,20 @@ func callProtocolV2(repoURL string, client *http.Client, body *bytes.Buffer) (io
 		return nil, resp.Header, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	return resp.Body, resp.Header, nil
+}
+
+func callProtocolV2File(repoURL string, body *bytes.Buffer) (io.ReadCloser, error) {
+	fpath := strings.TrimPrefix(repoURL, "file://")
+	cmd := exec.Command("git", "-c", "uploadpack.allowFilter=1", "upload-pack", "--stateless-rpc", fpath)
+	cmd.Stdin = body
+	cmd.Stderr = os.Stderr
+	stdout := bytes.NewBuffer(nil)
+	cmd.Stdout = stdout
+	cmd.Env = append(cmd.Env, "GIT_PROTOCOL=version=2")
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	return io.NopCloser(stdout), nil
 }
 
 func buildUploadPackURL(repoURL string) (string, error) {

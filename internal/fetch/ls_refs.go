@@ -19,10 +19,22 @@ func LsRefs(repoURL string, client *http.Client, refPrefixes []string) ([]string
 	defer rd.Close()
 	v2Resp := gitprotocolio.NewProtocolV2Response(rd)
 	var refData []string
+	isServerInfo := false
 	for v2Resp.Scan() {
 		chunk := v2Resp.Chunk()
 		if chunk.EndResponse {
+			if isServerInfo {
+				isServerInfo = false
+				continue
+			}
 			break
+		}
+		if bytes.Equal(chunk.Response, []byte("version 2\n")) {
+			isServerInfo = true
+			continue
+		}
+		if isServerInfo {
+			continue
 		}
 		refData = append(refData, string(chunk.Response))
 	}
