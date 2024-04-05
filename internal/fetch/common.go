@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -14,26 +15,12 @@ import (
 )
 
 func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]byte, http.Header, error) {
-	upURL, err := buildUploadPackURL(repoURL)
+	rd, headers, err := callProtocolV2(repoURL, client, body)
 	if err != nil {
-		return nil, nil, err
+		return nil, headers, err
 	}
-	req, err := http.NewRequest("POST", upURL, body)
-	if err != nil {
-		return nil, nil, err
-	}
-	req.Header.Set("Git-Protocol", "version=2")
-	if client == nil {
-		client = http.DefaultClient
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, resp.Header, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-	v2Resp := gitprotocolio.NewProtocolV2Response(resp.Body)
+	defer rd.Close()
+	v2Resp := gitprotocolio.NewProtocolV2Response(rd)
 	isPackfile := false
 	packfile := bytes.NewBuffer(nil)
 	for v2Resp.Scan() {
@@ -47,7 +34,7 @@ func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]b
 		if isPackfile {
 			sideband := gitprotocolio.ParseSideBandPacket(chunk.Response)
 			if sideband == nil {
-				return nil, resp.Header, errors.New("unexpected non-sideband packet")
+				return nil, headers, errors.New("unexpected non-sideband packet")
 			}
 			if pkt, ok := sideband.(gitprotocolio.BytePayloadPacket); ok {
 				packfile.Write(pkt.Bytes())
@@ -68,10 +55,32 @@ func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]b
 		}
 	}
 	if err := v2Resp.Err(); err != nil {
-		return nil, resp.Header, fmt.Errorf("failed to parse the protov2 resposne: %v", err)
-
+		return nil, headers, fmt.Errorf("failed to parse the protov2 resposne: %v", err)
 	}
-	return packfile.Bytes(), resp.Header, v2Resp.Err()
+	return packfile.Bytes(), headers, nil
+}
+
+func callProtocolV2(repoURL string, client *http.Client, body *bytes.Buffer) (io.ReadCloser, http.Header, error) {
+	upURL, err := buildUploadPackURL(repoURL)
+	if err != nil {
+		return nil, nil, err
+	}
+	req, err := http.NewRequest("POST", upURL, body)
+	if err != nil {
+		return nil, nil, err
+	}
+	req.Header.Set("Git-Protocol", "version=2")
+	if client == nil {
+		client = http.DefaultClient
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, resp.Header, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+	return resp.Body, resp.Header, nil
 }
 
 func buildUploadPackURL(repoURL string) (string, error) {

@@ -5,7 +5,6 @@ package fetch
 
 import (
 	"bytes"
-	"fmt"
 	"net/http"
 
 	"github.com/google/gitprotocolio"
@@ -13,26 +12,12 @@ import (
 
 // LsRefs fetches a refs from a remote repository.
 func LsRefs(repoURL string, client *http.Client, refPrefixes []string) ([]string, http.Header, error) {
-	upURL, err := buildUploadPackURL(repoURL)
+	rd, headers, err := callProtocolV2(repoURL, client, createLsRefsRequest(refPrefixes))
 	if err != nil {
-		return nil, nil, err
+		return nil, headers, err
 	}
-	req, err := http.NewRequest("POST", upURL, createLsRefsRequest(refPrefixes))
-	if err != nil {
-		return nil, nil, err
-	}
-	req.Header.Set("Git-Protocol", "version=2")
-	if client == nil {
-		client = http.DefaultClient
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, resp.Header, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-	v2Resp := gitprotocolio.NewProtocolV2Response(resp.Body)
+	defer rd.Close()
+	v2Resp := gitprotocolio.NewProtocolV2Response(rd)
 	var refData []string
 	for v2Resp.Scan() {
 		chunk := v2Resp.Chunk()
@@ -41,11 +26,7 @@ func LsRefs(repoURL string, client *http.Client, refPrefixes []string) ([]string
 		}
 		refData = append(refData, string(chunk.Response))
 	}
-	if err := v2Resp.Err(); err != nil {
-		return nil, resp.Header, fmt.Errorf("failed to parse the protov2 resposne: %v", err)
-
-	}
-	return refData, resp.Header, v2Resp.Err()
+	return refData, headers, nil
 }
 
 func createLsRefsRequest(refPrefixes []string) *bytes.Buffer {
