@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	nichegit "github.com/aviator-co/niche-git"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/spf13/cobra"
 )
 
@@ -23,8 +24,16 @@ var (
 var getCommitsCmd = &cobra.Command{
 	Use: "get-commits",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var wantCommitHashes []plumbing.Hash
+		for _, s := range getCommitsArgs.wantCommitHashes {
+			wantCommitHashes = append(wantCommitHashes, plumbing.NewHash(s))
+		}
+		var haveCommitHashes []plumbing.Hash
+		for _, s := range getCommitsArgs.haveCommitHashes {
+			haveCommitHashes = append(haveCommitHashes, plumbing.NewHash(s))
+		}
 		client := &http.Client{Transport: &authnRoundtripper{}}
-		commits, debugInfo, fetchErr := nichegit.FetchCommits(getCommitsArgs.repoURL, client, getCommitsArgs.wantCommitHashes, getCommitsArgs.haveCommitHashes)
+		commits, debugInfo, fetchErr := nichegit.FetchCommits(getCommitsArgs.repoURL, client, wantCommitHashes, haveCommitHashes)
 		if commits == nil {
 			// Always create an empty slice for JSON output.
 			commits = []*nichegit.CommitInfo{}

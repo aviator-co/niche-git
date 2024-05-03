@@ -39,7 +39,7 @@ func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]b
 			if sideband == nil {
 				return nil, headers, errors.New("unexpected non-sideband packet")
 			}
-			if pkt, ok := sideband.(gitprotocolio.BytePayloadPacket); ok {
+			if pkt, ok := sideband.(gitprotocolio.SideBandMainPacket); ok {
 				packfile.Write(pkt.Bytes())
 			}
 			continue

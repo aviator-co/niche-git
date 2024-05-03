@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	nichegit "github.com/aviator-co/niche-git"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +26,12 @@ var getModifiedFilesCmd = &cobra.Command{
 	Use: "get-modified-files",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := &http.Client{Transport: &authnRoundtripper{}}
-		files, debugInfo, fetchErr := nichegit.FetchModifiedFiles(getModifiedFilesArgs.repoURL, client, getModifiedFilesArgs.commitHash1, getModifiedFilesArgs.commitHash2)
+		files, debugInfo, fetchErr := nichegit.FetchModifiedFiles(
+			getModifiedFilesArgs.repoURL,
+			client,
+			plumbing.NewHash(getModifiedFilesArgs.commitHash1),
+			plumbing.NewHash(getModifiedFilesArgs.commitHash2),
+		)
 		if files == nil {
 			// Always create an empty slice for JSON output.
 			files = []string{}

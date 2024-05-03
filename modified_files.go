@@ -25,8 +25,8 @@ type FetchModifiedFilesDebugInfo struct {
 }
 
 // FetchModifiedFiles returns the list of files that were modified between two commits.
-func FetchModifiedFiles(repoURL string, client *http.Client, commitHash1, commitHash2 string) ([]string, *FetchModifiedFilesDebugInfo, error) {
-	packfilebs, headers, err := fetch.FetchBlobNonePackfile(repoURL, client, []string{commitHash1, commitHash2})
+func FetchModifiedFiles(repoURL string, client *http.Client, commitHash1, commitHash2 plumbing.Hash) ([]string, *FetchModifiedFilesDebugInfo, error) {
+	packfilebs, headers, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHash1, commitHash2})
 	debugInfo := &FetchModifiedFilesDebugInfo{
 		PackfileSize:    len(packfilebs),
 		ResponseHeaders: headers,
@@ -44,11 +44,11 @@ func FetchModifiedFiles(repoURL string, client *http.Client, commitHash1, commit
 		return nil, debugInfo, fmt.Errorf("failed to parse packfile: %v", err)
 	}
 
-	commit1, err := object.GetCommit(storage, plumbing.NewHash(commitHash1))
+	commit1, err := object.GetCommit(storage, commitHash1)
 	if err != nil {
 		return nil, debugInfo, fmt.Errorf("cannot find %q in the fetched packfile: %v", commitHash1, err)
 	}
-	commit2, err := object.GetCommit(storage, plumbing.NewHash(commitHash2))
+	commit2, err := object.GetCommit(storage, commitHash2)
 	if err != nil {
 		return nil, debugInfo, fmt.Errorf("cannot find %q in the fetched packfile: %v", commitHash2, err)
 	}

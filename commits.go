@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aviator-co/niche-git/internal/fetch"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/packfile"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
@@ -49,7 +50,7 @@ type FetchCommitsDebugInfo struct {
 	ResponseHeaders http.Header
 }
 
-func FetchCommits(repoURL string, client *http.Client, wantCommitHashes, haveCommitHashes []string) ([]*CommitInfo, *FetchCommitsDebugInfo, error) {
+func FetchCommits(repoURL string, client *http.Client, wantCommitHashes, haveCommitHashes []plumbing.Hash) ([]*CommitInfo, *FetchCommitsDebugInfo, error) {
 	packfilebs, headers, err := fetch.FetchCommitOnlyPackfile(repoURL, client, wantCommitHashes, haveCommitHashes)
 	debugInfo := &FetchCommitsDebugInfo{
 		PackfileSize:    len(packfilebs),
