@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/aviator-co/niche-git/debug"
 	"github.com/aviator-co/niche-git/internal/fetch"
 )
 
@@ -27,16 +28,9 @@ type RefInfo struct {
 	SymbolicTarget string `json:"symbolicTarget,omitempty"`
 }
 
-type LsRefsDebugInfo struct {
-	// ResponseHeaders is the headers of the HTTP response when fetching the packfile.
-	ResponseHeaders http.Header
-}
-
-func LsRefs(repoURL string, client *http.Client, refPrefixes []string) ([]*RefInfo, *LsRefsDebugInfo, error) {
+func LsRefs(repoURL string, client *http.Client, refPrefixes []string) ([]*RefInfo, debug.LsRefsDebugInfo, error) {
 	rawRefData, headers, err := fetch.LsRefs(repoURL, client, refPrefixes)
-	debugInfo := &LsRefsDebugInfo{
-		ResponseHeaders: headers,
-	}
+	debugInfo := debug.LsRefsDebugInfo{ResponseHeaders: headers}
 	if err != nil {
 		return nil, debugInfo, err
 	}

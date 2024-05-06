@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	nichegit "github.com/aviator-co/niche-git"
+	"github.com/aviator-co/niche-git/debug"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/spf13/cobra"
 )
@@ -39,9 +40,8 @@ var getCommitsCmd = &cobra.Command{
 			commits = []*nichegit.CommitInfo{}
 		}
 		output := getCommitsOutput{
-			Commits:         commits,
-			ResponseHeaders: debugInfo.ResponseHeaders,
-			PackfileSize:    debugInfo.PackfileSize,
+			Commits:   commits,
+			DebugInfo: debugInfo,
 		}
 		if fetchErr != nil {
 			output.Error = fetchErr.Error()
@@ -54,10 +54,9 @@ var getCommitsCmd = &cobra.Command{
 }
 
 type getCommitsOutput struct {
-	Commits         []*nichegit.CommitInfo `json:"commits"`
-	ResponseHeaders map[string][]string    `json:"responseHeaders"`
-	PackfileSize    int                    `json:"packfileSize"`
-	Error           string                 `json:"error,omitempty"`
+	Commits   []*nichegit.CommitInfo `json:"commits"`
+	DebugInfo debug.FetchDebugInfo   `json:"debugInfo"`
+	Error     string                 `json:"error,omitempty"`
 }
 
 func init() {
@@ -65,7 +64,7 @@ func init() {
 	getCommitsCmd.Flags().StringVar(&getCommitsArgs.repoURL, "repo-url", "", "Git reposiotry URL")
 	getCommitsCmd.Flags().StringSliceVar(&getCommitsArgs.wantCommitHashes, "want-commit-hashes", nil, "Want commit hashes")
 	getCommitsCmd.Flags().StringSliceVar(&getCommitsArgs.haveCommitHashes, "have-commit-hashes", nil, "Have commit hashes")
-	getCommitsCmd.MarkFlagRequired("repo-url")
+	_ = getCommitsCmd.MarkFlagRequired("repo-url")
 
 	getCommitsCmd.Flags().StringVar(&authzHeader, "authz-header", "", "Optional authorization header")
 	getCommitsCmd.Flags().StringVar(&basicAuthzUser, "basic-authz-user", "", "Optional HTTP Basic Auth user")

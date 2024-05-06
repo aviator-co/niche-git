@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	nichegit "github.com/aviator-co/niche-git"
+	"github.com/aviator-co/niche-git/debug"
 	"github.com/spf13/cobra"
 )
 
@@ -29,8 +30,8 @@ var lsRefsCmd = &cobra.Command{
 			refs = []*nichegit.RefInfo{}
 		}
 		output := lsRefsOutput{
-			Refs:            refs,
-			ResponseHeaders: debugInfo.ResponseHeaders,
+			Refs:      refs,
+			DebugInfo: debugInfo,
 		}
 		if fetchErr != nil {
 			output.Error = fetchErr.Error()
@@ -43,16 +44,16 @@ var lsRefsCmd = &cobra.Command{
 }
 
 type lsRefsOutput struct {
-	Refs            []*nichegit.RefInfo `json:"refs"`
-	ResponseHeaders map[string][]string `json:"responseHeaders"`
-	Error           string              `json:"error,omitempty"`
+	Refs      []*nichegit.RefInfo   `json:"refs"`
+	DebugInfo debug.LsRefsDebugInfo `json:"debugInfo"`
+	Error     string                `json:"error,omitempty"`
 }
 
 func init() {
 	rootCmd.AddCommand(lsRefsCmd)
 	lsRefsCmd.Flags().StringVar(&lsRefsArgs.repoURL, "repo-url", "", "Git reposiotry URL")
 	lsRefsCmd.Flags().StringSliceVar(&lsRefsArgs.refPrefixes, "ref-prefixes", nil, "Ref prefixes")
-	lsRefsCmd.MarkFlagRequired("repo-url")
+	_ = lsRefsCmd.MarkFlagRequired("repo-url")
 
 	lsRefsCmd.Flags().StringVar(&authzHeader, "authz-header", "", "Optional authorization header")
 	lsRefsCmd.Flags().StringVar(&basicAuthzUser, "basic-authz-user", "", "Optional HTTP Basic Auth user")

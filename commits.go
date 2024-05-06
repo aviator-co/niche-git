@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/aviator-co/niche-git/debug"
 	"github.com/aviator-co/niche-git/internal/fetch"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/packfile"
@@ -42,20 +43,8 @@ type CommitInfo struct {
 	ParentHashes []string `json:"parentHashes"`
 }
 
-type FetchCommitsDebugInfo struct {
-	// PackfileSize is the size of the fetched packfile in bytes.
-	PackfileSize int
-
-	// ResponseHeaders is the headers of the HTTP response when fetching the packfile.
-	ResponseHeaders http.Header
-}
-
-func FetchCommits(repoURL string, client *http.Client, wantCommitHashes, haveCommitHashes []plumbing.Hash) ([]*CommitInfo, *FetchCommitsDebugInfo, error) {
-	packfilebs, headers, err := fetch.FetchCommitOnlyPackfile(repoURL, client, wantCommitHashes, haveCommitHashes)
-	debugInfo := &FetchCommitsDebugInfo{
-		PackfileSize:    len(packfilebs),
-		ResponseHeaders: headers,
-	}
+func FetchCommits(repoURL string, client *http.Client, wantCommitHashes, haveCommitHashes []plumbing.Hash) ([]*CommitInfo, debug.FetchDebugInfo, error) {
+	packfilebs, debugInfo, err := fetch.FetchCommitOnlyPackfile(repoURL, client, wantCommitHashes, haveCommitHashes)
 	if err != nil {
 		return nil, debugInfo, err
 	}

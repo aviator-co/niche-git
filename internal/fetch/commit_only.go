@@ -7,12 +7,13 @@ import (
 	"bytes"
 	"net/http"
 
+	"github.com/aviator-co/niche-git/debug"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/gitprotocolio"
 )
 
 // FetchCommitOnlyPackfile fetches a packfile from a remote repository with only commit objects.
-func FetchCommitOnlyPackfile(repoURL string, client *http.Client, wantOids, haveOids []plumbing.Hash) ([]byte, http.Header, error) {
+func FetchCommitOnlyPackfile(repoURL string, client *http.Client, wantOids, haveOids []plumbing.Hash) ([]byte, debug.FetchDebugInfo, error) {
 	return fetchPackfile(repoURL, client, createCommitOnlyFetchRequest(wantOids, haveOids))
 }
 

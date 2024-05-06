@@ -7,12 +7,13 @@ import (
 	"bytes"
 	"net/http"
 
+	"github.com/aviator-co/niche-git/debug"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/gitprotocolio"
 )
 
 // FetchBlobNonePackfile fetches a packfile from a remote repository without blobs.
-func FetchBlobNonePackfile(repoURL string, client *http.Client, oids []plumbing.Hash) ([]byte, http.Header, error) {
+func FetchBlobNonePackfile(repoURL string, client *http.Client, oids []plumbing.Hash) ([]byte, debug.FetchDebugInfo, error) {
 	return fetchPackfile(repoURL, client, createBlobNoneFetchRequest(oids))
 }
 
