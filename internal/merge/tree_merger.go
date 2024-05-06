@@ -22,6 +22,11 @@ type MergeResult struct {
 	// resolver creates new blobs or trees, they are not included in this list.
 	NewHashes []plumbing.Hash
 
+	FilesPickedEntry1  []string
+	FilesPickedEntry2  []string
+	FilesPickedEntry12 []string
+	FilesConflict      []string
+
 	// Tree is the result of the merge.
 	TreeHash plumbing.Hash
 }
@@ -43,7 +48,14 @@ func MergeTree(
 	if err != nil {
 		return nil, err
 	}
-	return &MergeResult{tm.newHashes, treeHash}, nil
+	return &MergeResult{
+		NewHashes:          tm.newHashes,
+		FilesPickedEntry1:  tm.filesPickedEntry1,
+		FilesPickedEntry2:  tm.filesPickedEntry2,
+		FilesPickedEntry12: tm.filesPickedEntry12,
+		FilesConflict:      tm.filesConflict,
+		TreeHash:           treeHash,
+	}, nil
 }
 
 type treeMerger struct {
@@ -51,6 +63,11 @@ type treeMerger struct {
 	conflictResolver resolver
 
 	newHashes []plumbing.Hash
+
+	filesPickedEntry1  []string
+	filesPickedEntry2  []string
+	filesPickedEntry12 []string
+	filesConflict      []string
 }
 
 func (tm *treeMerger) Merge(tree1, tree2, mergeBase *object.Tree) (plumbing.Hash, error) {
@@ -102,14 +119,17 @@ func (tm *treeMerger) mergeInternal(pth string, tree1, tree2, mergeBase *object.
 		case conflictTypeNoChange:
 			resultEntries = append(resultEntries, *entryBase)
 		case conflictTypeTakeChange1:
+			tm.filesPickedEntry1 = append(tm.filesPickedEntry1, path.Join(pth, name))
 			if entry1 != nil {
 				resultEntries = append(resultEntries, *entry1)
 			}
 		case conflictTypeTakeChange2:
+			tm.filesPickedEntry2 = append(tm.filesPickedEntry2, path.Join(pth, name))
 			if entry2 != nil {
 				resultEntries = append(resultEntries, *entry2)
 			}
 		case conflictTypeSameChange:
+			tm.filesPickedEntry12 = append(tm.filesPickedEntry12, path.Join(pth, name))
 			if entry1 != nil {
 				resultEntries = append(resultEntries, *entry1)
 			}
@@ -140,6 +160,7 @@ func (tm *treeMerger) mergeInternal(pth string, tree1, tree2, mergeBase *object.
 				}
 				resultEntries = append(resultEntries, object.TreeEntry{Name: name, Mode: filemode.Dir, Hash: treeHash})
 			} else {
+				tm.filesConflict = append(tm.filesConflict, path.Join(pth, name))
 				resolvedEntries, err := tm.conflictResolver(pth, entry1, entry2, entryBase)
 				if err != nil {
 					return plumbing.ZeroHash, fmt.Errorf("Cannot resolve conflict: %v", err)
