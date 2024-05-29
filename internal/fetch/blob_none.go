@@ -7,15 +7,17 @@ import (
 	"bytes"
 	"net/http"
 
+	"github.com/aviator-co/niche-git/debug"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/gitprotocolio"
 )
 
 // FetchBlobNonePackfile fetches a packfile from a remote repository without blobs.
-func FetchBlobNonePackfile(repoURL string, client *http.Client, oids []string) ([]byte, http.Header, error) {
+func FetchBlobNonePackfile(repoURL string, client *http.Client, oids []plumbing.Hash) ([]byte, debug.FetchDebugInfo, error) {
 	return fetchPackfile(repoURL, client, createBlobNoneFetchRequest(oids))
 }
 
-func createBlobNoneFetchRequest(oids []string) *bytes.Buffer {
+func createBlobNoneFetchRequest(oids []plumbing.Hash) *bytes.Buffer {
 	chunks := []*gitprotocolio.ProtocolV2RequestChunk{
 		{
 			Command: "fetch",
@@ -26,7 +28,7 @@ func createBlobNoneFetchRequest(oids []string) *bytes.Buffer {
 	}
 	for _, oid := range oids {
 		chunks = append(chunks, &gitprotocolio.ProtocolV2RequestChunk{
-			Argument: []byte("want " + oid),
+			Argument: []byte("want " + oid.String()),
 		})
 	}
 	chunks = append(chunks,

@@ -7,15 +7,17 @@ import (
 	"bytes"
 	"net/http"
 
+	"github.com/aviator-co/niche-git/debug"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/gitprotocolio"
 )
 
 // FetchCommitOnlyPackfile fetches a packfile from a remote repository with only commit objects.
-func FetchCommitOnlyPackfile(repoURL string, client *http.Client, wantOids, haveOids []string) ([]byte, http.Header, error) {
+func FetchCommitOnlyPackfile(repoURL string, client *http.Client, wantOids, haveOids []plumbing.Hash) ([]byte, debug.FetchDebugInfo, error) {
 	return fetchPackfile(repoURL, client, createCommitOnlyFetchRequest(wantOids, haveOids))
 }
 
-func createCommitOnlyFetchRequest(wantOids, haveOids []string) *bytes.Buffer {
+func createCommitOnlyFetchRequest(wantOids, haveOids []plumbing.Hash) *bytes.Buffer {
 	chunks := []*gitprotocolio.ProtocolV2RequestChunk{
 		{
 			Command: "fetch",
@@ -26,12 +28,12 @@ func createCommitOnlyFetchRequest(wantOids, haveOids []string) *bytes.Buffer {
 	}
 	for _, oid := range wantOids {
 		chunks = append(chunks, &gitprotocolio.ProtocolV2RequestChunk{
-			Argument: []byte("want " + oid),
+			Argument: []byte("want " + oid.String()),
 		})
 	}
 	for _, oid := range haveOids {
 		chunks = append(chunks, &gitprotocolio.ProtocolV2RequestChunk{
-			Argument: []byte("have " + oid),
+			Argument: []byte("have " + oid.String()),
 		})
 	}
 	chunks = append(chunks,

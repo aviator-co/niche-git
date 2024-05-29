@@ -14,13 +14,15 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/aviator-co/niche-git/debug"
 	"github.com/google/gitprotocolio"
 )
 
-func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]byte, http.Header, error) {
+func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]byte, debug.FetchDebugInfo, error) {
 	rd, headers, err := callProtocolV2(repoURL, client, body)
+	debugInfo := debug.FetchDebugInfo{ResponseHeaders: headers}
 	if err != nil {
-		return nil, headers, err
+		return nil, debugInfo, err
 	}
 	defer rd.Close()
 	v2Resp := gitprotocolio.NewProtocolV2Response(rd)
@@ -37,9 +39,9 @@ func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]b
 		if isPackfile {
 			sideband := gitprotocolio.ParseSideBandPacket(chunk.Response)
 			if sideband == nil {
-				return nil, headers, errors.New("unexpected non-sideband packet")
+				return nil, debugInfo, errors.New("unexpected non-sideband packet")
 			}
-			if pkt, ok := sideband.(gitprotocolio.BytePayloadPacket); ok {
+			if pkt, ok := sideband.(gitprotocolio.SideBandMainPacket); ok {
 				packfile.Write(pkt.Bytes())
 			}
 			continue
@@ -58,9 +60,10 @@ func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]b
 		}
 	}
 	if err := v2Resp.Err(); err != nil {
-		return nil, headers, fmt.Errorf("failed to parse the protov2 resposne: %v", err)
+		return nil, debugInfo, fmt.Errorf("failed to parse the protov2 resposne: %v", err)
 	}
-	return packfile.Bytes(), headers, nil
+	debugInfo.PackfileSize = packfile.Len()
+	return packfile.Bytes(), debugInfo, nil
 }
 
 func callProtocolV2(repoURL string, client *http.Client, body *bytes.Buffer) (io.ReadCloser, http.Header, error) {

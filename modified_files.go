@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/aviator-co/niche-git/debug"
 	"github.com/aviator-co/niche-git/internal/diff"
 	"github.com/aviator-co/niche-git/internal/fetch"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -16,21 +17,9 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 )
 
-type FetchModifiedFilesDebugInfo struct {
-	// PackfileSize is the size of the fetched packfile in bytes.
-	PackfileSize int
-
-	// ResponseHeaders is the headers of the HTTP response when fetching the packfile.
-	ResponseHeaders http.Header
-}
-
 // FetchModifiedFiles returns the list of files that were modified between two commits.
-func FetchModifiedFiles(repoURL string, client *http.Client, commitHash1, commitHash2 string) ([]string, *FetchModifiedFilesDebugInfo, error) {
-	packfilebs, headers, err := fetch.FetchBlobNonePackfile(repoURL, client, []string{commitHash1, commitHash2})
-	debugInfo := &FetchModifiedFilesDebugInfo{
-		PackfileSize:    len(packfilebs),
-		ResponseHeaders: headers,
-	}
+func FetchModifiedFiles(repoURL string, client *http.Client, commitHash1, commitHash2 plumbing.Hash) ([]string, debug.FetchDebugInfo, error) {
+	packfilebs, debugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHash1, commitHash2})
 	if err != nil {
 		return nil, debugInfo, err
 	}
@@ -44,11 +33,11 @@ func FetchModifiedFiles(repoURL string, client *http.Client, commitHash1, commit
 		return nil, debugInfo, fmt.Errorf("failed to parse packfile: %v", err)
 	}
 
-	commit1, err := object.GetCommit(storage, plumbing.NewHash(commitHash1))
+	commit1, err := object.GetCommit(storage, commitHash1)
 	if err != nil {
 		return nil, debugInfo, fmt.Errorf("cannot find %q in the fetched packfile: %v", commitHash1, err)
 	}
-	commit2, err := object.GetCommit(storage, plumbing.NewHash(commitHash2))
+	commit2, err := object.GetCommit(storage, commitHash2)
 	if err != nil {
 		return nil, debugInfo, fmt.Errorf("cannot find %q in the fetched packfile: %v", commitHash2, err)
 	}
