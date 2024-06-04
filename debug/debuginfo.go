@@ -17,9 +17,9 @@ type LsRefsDebugInfo struct {
 
 type PushCommandStatus struct {
 	// Name is the name of the reference.
-	Name string
+	Name string `json:"name"`
 	// Status is the status of the command.
-	Status string
+	Status string `json:"status"`
 }
 
 type PushDebugInfo struct {
