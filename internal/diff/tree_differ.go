@@ -51,11 +51,15 @@ func (td *treeDiffer) Diff(pth string, tree1, tree2 *object.Tree) error {
 		entry1 := entries1[name]
 		entry2 := entries2[name]
 		if entry1 == nil {
-			td.handleExistOnlyInOneSide(pth, entry2, false)
+			if err := td.handleExistOnlyInOneSide(pth, entry2, false); err != nil {
+				return err
+			}
 			continue
 		}
 		if entry2 == nil {
-			td.handleExistOnlyInOneSide(pth, entry1, true)
+			if err := td.handleExistOnlyInOneSide(pth, entry1, true); err != nil {
+				return err
+			}
 			continue
 		}
 		if entry1.Hash == entry2.Hash {
@@ -70,12 +74,16 @@ func (td *treeDiffer) Diff(pth string, tree1, tree2 *object.Tree) error {
 		}
 		if !entry1.Mode.IsFile() && entry2.Mode.IsFile() {
 			td.modified[path.Join(pth, name)] = BlobHashes{plumbing.ZeroHash, entry2.Hash}
-			td.handleExistOnlyInOneSide(pth, entry1, true)
+			if err := td.handleExistOnlyInOneSide(pth, entry1, true); err != nil {
+				return err
+			}
 			continue
 		}
 		if entry1.Mode.IsFile() && !entry2.Mode.IsFile() {
 			td.modified[path.Join(pth, name)] = BlobHashes{entry1.Hash, plumbing.ZeroHash}
-			td.handleExistOnlyInOneSide(pth, entry2, false)
+			if err := td.handleExistOnlyInOneSide(pth, entry2, false); err != nil {
+				return err
+			}
 			continue
 		}
 		// Both are directories.
