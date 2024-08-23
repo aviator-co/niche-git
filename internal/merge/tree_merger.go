@@ -163,7 +163,7 @@ func (tm *treeMerger) mergeInternal(pth string, tree1, tree2, mergeBase *object.
 				tm.filesConflict = append(tm.filesConflict, path.Join(pth, name))
 				resolvedEntries, err := tm.conflictResolver(pth, entry1, entry2, entryBase)
 				if err != nil {
-					return plumbing.ZeroHash, fmt.Errorf("Cannot resolve conflict: %v", err)
+					return plumbing.ZeroHash, fmt.Errorf("cannot resolve conflict: %v", err)
 				}
 				resultEntries = append(resultEntries, resolvedEntries...)
 			}
@@ -173,11 +173,11 @@ func (tm *treeMerger) mergeInternal(pth string, tree1, tree2, mergeBase *object.
 	newTree := object.Tree{Entries: resultEntries}
 	o := tm.storage.NewEncodedObject()
 	if err := newTree.Encode(o); err != nil {
-		return plumbing.ZeroHash, fmt.Errorf("Cannot create a new tree entry: %v", err)
+		return plumbing.ZeroHash, fmt.Errorf("cannot create a new tree entry: %v", err)
 	}
 	newTreeHash, err := tm.storage.SetEncodedObject(o)
 	if err != nil {
-		return plumbing.ZeroHash, fmt.Errorf("Cannot save the new tree entry: %v", err)
+		return plumbing.ZeroHash, fmt.Errorf("cannot save the new tree entry: %v", err)
 	}
 	tm.newHashes = append(tm.newHashes, newTreeHash)
 	return newTreeHash, nil

@@ -1,3 +1,6 @@
+// Copyright 2024 Aviator Technologies, Inc.
+// SPDX-License-Identifier: MIT
+
 package push
 
 import (
@@ -5,11 +8,13 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/aviator-co/niche-git/debug"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/protocol/packp"
 	gogittransport "github.com/go-git/go-git/v5/plumbing/transport"
+	gogitfile "github.com/go-git/go-git/v5/plumbing/transport/file"
 	gogithttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
@@ -19,20 +24,30 @@ func Push(repoURL string, client *http.Client, packfile *bytes.Buffer, refUpdate
 		debugInfo.PackfileSize = packfile.Len()
 	}
 
+	crt := &capturingRoundTripper{inner: client.Transport}
+	var transport gogittransport.Transport
+	var isFile bool
+	if strings.HasPrefix(repoURL, "file") {
+		repoURL = strings.TrimPrefix(repoURL, "file://")
+		isFile = true
+	}
+
 	ep, err := gogittransport.NewEndpoint(repoURL)
 	if err != nil {
 		return debugInfo, err
 	}
 
-	crt := &capturingRoundTripper{inner: client.Transport}
-	httpClient := &http.Client{
-		Transport:     crt,
-		CheckRedirect: client.CheckRedirect,
-		Jar:           client.Jar,
-		Timeout:       client.Timeout,
+	if isFile {
+		transport = gogitfile.DefaultClient
+	} else {
+		transport = gogithttp.NewClient(&http.Client{
+			Transport:     crt,
+			CheckRedirect: client.CheckRedirect,
+			Jar:           client.Jar,
+			Timeout:       client.Timeout,
+		})
 	}
 
-	transport := gogithttp.NewClient(httpClient)
 	sess, err := transport.NewReceivePackSession(ep, nil)
 	if err != nil {
 		return debugInfo, err

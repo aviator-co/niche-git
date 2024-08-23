@@ -28,6 +28,7 @@ var (
 		committerEmail  string
 		committerTime   string
 		ref             string
+		conflictRef     string
 		currentRefHash  string
 		abortOnConflict bool
 
@@ -53,6 +54,11 @@ var squashCherryPick = &cobra.Command{
 		}
 
 		client := &http.Client{Transport: &authnRoundtripper{}}
+		var conflictRef *plumbing.ReferenceName
+		if squashCherryPickArgs.conflictRef != "" {
+			r := plumbing.ReferenceName(squashCherryPickArgs.conflictRef)
+			conflictRef = &r
+		}
 		result, fetchDebugInfo, pushDebugInfo, pushErr := nichegit.PushSquashCherryPick(
 			squashCherryPickArgs.repoURL,
 			client,
@@ -63,6 +69,7 @@ var squashCherryPick = &cobra.Command{
 			author,
 			committer,
 			plumbing.ReferenceName(squashCherryPickArgs.ref),
+			conflictRef,
 			currentRefhash,
 			squashCherryPickArgs.abortOnConflict,
 		)
@@ -75,6 +82,8 @@ var squashCherryPick = &cobra.Command{
 			output.CherryPickedFiles = result.CherryPickedFiles
 			output.ConflictOpenFiles = result.ConflictOpenFiles
 			output.ConflictResolvedFiles = result.ConflictResolvedFiles
+			output.BinaryConflictFiles = result.BinaryConflictFiles
+			output.NonFileConflictFiles = result.NonFileConflictFiles
 		}
 		if output.CherryPickedFiles == nil {
 			output.CherryPickedFiles = []string{}
@@ -84,6 +93,12 @@ var squashCherryPick = &cobra.Command{
 		}
 		if output.ConflictResolvedFiles == nil {
 			output.ConflictResolvedFiles = []string{}
+		}
+		if output.BinaryConflictFiles == nil {
+			output.BinaryConflictFiles = []string{}
+		}
+		if output.NonFileConflictFiles == nil {
+			output.NonFileConflictFiles = []string{}
 		}
 		if pushErr != nil {
 			output.Error = pushErr.Error()
@@ -118,6 +133,8 @@ type squashCherryPickOutput struct {
 	CherryPickedFiles     []string             `json:"cherryPickedFiles"`
 	ConflictOpenFiles     []string             `json:"conflictOpenFiles"`
 	ConflictResolvedFiles []string             `json:"conflictResolvedFiles"`
+	BinaryConflictFiles   []string             `json:"binaryConflictFiles"`
+	NonFileConflictFiles  []string             `json:"nonFileConflictFiles"`
 	FetchDebugInfo        debug.FetchDebugInfo `json:"fetchDebugInfo"`
 	PushDebugInfo         *debug.PushDebugInfo `json:"pushDebugInfo"`
 	Error                 string               `json:"error,omitempty"`
@@ -137,6 +154,7 @@ func init() {
 	squashCherryPick.Flags().StringVar(&squashCherryPickArgs.committerEmail, "committer-email", "", "Commiter email address")
 	squashCherryPick.Flags().StringVar(&squashCherryPickArgs.committerTime, "committer-time", "", "Commit time in RFC3339 format (e.g. 2024-01-01T00:00:00Z)")
 	squashCherryPick.Flags().StringVar(&squashCherryPickArgs.ref, "ref", "", "A ref name (e.g. refs/heads/foobar) to push")
+	squashCherryPick.Flags().StringVar(&squashCherryPickArgs.conflictRef, "conflict-ref", "", "A ref name (e.g. refs/heads/foobar) to push when there's a conflict")
 	squashCherryPick.Flags().StringVar(&squashCherryPickArgs.currentRefHash, "current-ref-hash", "", "The expected current commit hash of the ref. If this is specified, the push will use the current commit hash. This is used for compare-and-swap.")
 	squashCherryPick.Flags().BoolVar(&squashCherryPickArgs.abortOnConflict, "abort-on-conflict", false, "Abort the operation if there is a merge conflict")
 	_ = squashCherryPick.MarkFlagRequired("repo-url")

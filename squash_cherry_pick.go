@@ -13,6 +13,7 @@ import (
 	"github.com/aviator-co/niche-git/internal/fetch"
 	"github.com/aviator-co/niche-git/internal/merge"
 	"github.com/aviator-co/niche-git/internal/push"
+	"github.com/aviator-co/niche-git/internal/resolvediff3"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/packfile"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -24,6 +25,8 @@ type PushSquashCherryPickResult struct {
 	CherryPickedFiles     []string
 	ConflictOpenFiles     []string
 	ConflictResolvedFiles []string
+	BinaryConflictFiles   []string
+	NonFileConflictFiles  []string
 }
 
 // PushSquashCherryPick creates a new commit with the changes between the two commits and push to
@@ -35,6 +38,7 @@ func PushSquashCherryPick(
 	commitMessage string,
 	author, comitter object.Signature,
 	ref plumbing.ReferenceName,
+	conflictRef *plumbing.ReferenceName,
 	currentRefhash *plumbing.Hash,
 	abortOnConflict bool,
 ) (*PushSquashCherryPickResult, debug.FetchDebugInfo, *debug.PushDebugInfo, error) {
@@ -65,15 +69,45 @@ func PushSquashCherryPick(
 		return nil, fetchDebugInfo, nil, err
 	}
 
-	mergeResult, err := merge.MergeTree(storage, treeCPFrom, treeCPTo, treeCPBase, conflictResolver)
+	collector := &conflictBlobCollector{}
+	mergeResult, err := merge.MergeTree(storage, treeCPFrom, treeCPTo, treeCPBase, collector.Resolve)
 	if err != nil {
 		return nil, fetchDebugInfo, nil, fmt.Errorf("failed to merge the trees: %v", err)
 	}
-	cpResult := &PushSquashCherryPickResult{
-		CherryPickedFiles: mergeResult.FilesPickedEntry1,
-		ConflictOpenFiles: mergeResult.FilesConflict,
+
+	resolver := resolvediff3.NewDiff3Resolver(storage, "Cherry-pick content", "Base content", ".rej", "")
+	if len(mergeResult.FilesConflict) != 0 {
+		// Need to fetch blobs and resolve the conflicts.
+		if len(collector.blobHashes) > 0 {
+			packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(repoURL, client, collector.blobHashes)
+			// TODO: return debug info
+			_ = fetchBlobDebugInfo
+			if err != nil {
+				return nil, fetchDebugInfo, nil, err
+			}
+			parser, err := packfile.NewParserWithStorage(packfile.NewScanner(bytes.NewReader(packfilebs)), storage)
+			if err != nil {
+				return nil, fetchDebugInfo, nil, fmt.Errorf("failed to parse packfile: %v", err)
+			}
+			if _, err := parser.Parse(); err != nil {
+				return nil, fetchDebugInfo, nil, fmt.Errorf("failed to parse packfile: %v", err)
+			}
+		}
+		mergeResult, err = merge.MergeTree(storage, treeCPFrom, treeCPTo, treeCPBase, resolver.Resolve)
+		if err != nil {
+			return nil, fetchDebugInfo, nil, fmt.Errorf("failed to merge the trees: %v", err)
+		}
 	}
-	if abortOnConflict && len(mergeResult.FilesConflict) > 0 {
+
+	cpResult := &PushSquashCherryPickResult{
+		CherryPickedFiles:     mergeResult.FilesPickedEntry1,
+		ConflictOpenFiles:     resolver.ConflictOpenFiles,
+		ConflictResolvedFiles: resolver.ConflictResolvedFiles,
+		BinaryConflictFiles:   resolver.BinaryConflictFiles,
+		NonFileConflictFiles:  resolver.NonFileConflictFiles,
+	}
+	hasConflict := len(cpResult.ConflictOpenFiles) > 0 || len(cpResult.BinaryConflictFiles) > 0 || len(cpResult.NonFileConflictFiles) > 0
+	if abortOnConflict && hasConflict {
 		return cpResult, fetchDebugInfo, nil, errors.New("conflict detected")
 	}
 	commit := &object.Commit{
@@ -93,15 +127,26 @@ func PushSquashCherryPick(
 	}
 	cpResult.CommitHash = commitHash
 
+	newHashes := []plumbing.Hash{commitHash}
+	newHashes = append(newHashes, mergeResult.NewHashes...)
+	newHashes = append(newHashes, resolver.NewHashes...)
+
 	var buf bytes.Buffer
 	packEncoder := packfile.NewEncoder(&buf, storage, false)
-	if _, err := packEncoder.Encode(append([]plumbing.Hash{commitHash}, mergeResult.NewHashes...), 0); err != nil {
+	if _, err := packEncoder.Encode(newHashes, 0); err != nil {
 		return cpResult, fetchDebugInfo, nil, fmt.Errorf("failed to create a packfile: %v", err)
+	}
+
+	var destRef plumbing.ReferenceName
+	if hasConflict && conflictRef != nil {
+		destRef = *conflictRef
+	} else {
+		destRef = ref
 	}
 
 	pushDebugInfo, err := push.Push(repoURL, client, &buf, []push.RefUpdate{
 		{
-			Name:    plumbing.ReferenceName(ref),
+			Name:    destRef,
 			OldHash: currentRefhash,
 			NewHash: commitHash,
 		},
@@ -112,18 +157,15 @@ func PushSquashCherryPick(
 	return cpResult, fetchDebugInfo, &pushDebugInfo, nil
 }
 
-func conflictResolver(parentPath string, cpFromEntry, cpToEntry, base *object.TreeEntry) ([]object.TreeEntry, error) {
-	var ret []object.TreeEntry
-	if cpFromEntry != nil {
-		ret = append(ret, object.TreeEntry{Name: cpFromEntry.Name + ".from-cherry-pick", Hash: cpFromEntry.Hash, Mode: cpFromEntry.Mode})
+type conflictBlobCollector struct {
+	blobHashes []plumbing.Hash
+}
+
+func (c *conflictBlobCollector) Resolve(parentPath string, entry1, entry2, entryBase *object.TreeEntry) ([]object.TreeEntry, error) {
+	if entry1 != nil && entry1.Mode.IsFile() && entry2 != nil && entry2.Mode.IsFile() && entryBase != nil && entryBase.Mode.IsFile() {
+		c.blobHashes = append(c.blobHashes, entry1.Hash, entry2.Hash, entryBase.Hash)
 	}
-	if cpToEntry != nil {
-		ret = append(ret, *cpToEntry)
-	}
-	if base != nil {
-		ret = append(ret, object.TreeEntry{Name: base.Name + ".from-cherry-pick-base", Hash: base.Hash, Mode: base.Mode})
-	}
-	return ret, nil
+	return nil, nil
 }
 
 func getTreeFromCommit(storage *memory.Storage, commitHash plumbing.Hash) (*object.Tree, error) {
