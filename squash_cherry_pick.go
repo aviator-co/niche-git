@@ -41,61 +41,61 @@ func PushSquashCherryPick(
 	conflictRef *plumbing.ReferenceName,
 	currentRefhash *plumbing.Hash,
 	abortOnConflict bool,
-) (*PushSquashCherryPickResult, debug.FetchDebugInfo, *debug.PushDebugInfo, error) {
+) (*PushSquashCherryPickResult, debug.FetchDebugInfo, *debug.FetchDebugInfo, *debug.PushDebugInfo, error) {
 	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHashCherryPickFrom, commitHashCherryPickBase, commitHashCherryPickTo})
 	if err != nil {
-		return nil, fetchDebugInfo, nil, err
+		return nil, fetchDebugInfo, nil, nil, err
 	}
 
 	storage := memory.NewStorage()
 	parser, err := packfile.NewParserWithStorage(packfile.NewScanner(bytes.NewReader(packfilebs)), storage)
 	if err != nil {
-		return nil, fetchDebugInfo, nil, fmt.Errorf("failed to parse packfile: %v", err)
+		return nil, fetchDebugInfo, nil, nil, fmt.Errorf("failed to parse packfile: %v", err)
 	}
 	if _, err := parser.Parse(); err != nil {
-		return nil, fetchDebugInfo, nil, fmt.Errorf("failed to parse packfile: %v", err)
+		return nil, fetchDebugInfo, nil, nil, fmt.Errorf("failed to parse packfile: %v", err)
 	}
 
 	treeCPFrom, err := getTreeFromCommit(storage, commitHashCherryPickFrom)
 	if err != nil {
-		return nil, fetchDebugInfo, nil, err
+		return nil, fetchDebugInfo, nil, nil, err
 	}
 	treeCPBase, err := getTreeFromCommit(storage, commitHashCherryPickBase)
 	if err != nil {
-		return nil, fetchDebugInfo, nil, err
+		return nil, fetchDebugInfo, nil, nil, err
 	}
 	treeCPTo, err := getTreeFromCommit(storage, commitHashCherryPickTo)
 	if err != nil {
-		return nil, fetchDebugInfo, nil, err
+		return nil, fetchDebugInfo, nil, nil, err
 	}
 
 	collector := &conflictBlobCollector{}
 	mergeResult, err := merge.MergeTree(storage, treeCPFrom, treeCPTo, treeCPBase, collector.Resolve)
 	if err != nil {
-		return nil, fetchDebugInfo, nil, fmt.Errorf("failed to merge the trees: %v", err)
+		return nil, fetchDebugInfo, nil, nil, fmt.Errorf("failed to merge the trees: %v", err)
 	}
 
 	resolver := resolvediff3.NewDiff3Resolver(storage, "Cherry-pick content", "Base content", ".rej", "")
+	var blobFetchDebugInfo *debug.FetchDebugInfo
 	if len(mergeResult.FilesConflict) != 0 {
 		// Need to fetch blobs and resolve the conflicts.
 		if len(collector.blobHashes) > 0 {
 			packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(repoURL, client, collector.blobHashes)
-			// TODO: return debug info
-			_ = fetchBlobDebugInfo
+			blobFetchDebugInfo = &fetchBlobDebugInfo
 			if err != nil {
-				return nil, fetchDebugInfo, nil, err
+				return nil, fetchDebugInfo, blobFetchDebugInfo, nil, err
 			}
 			parser, err := packfile.NewParserWithStorage(packfile.NewScanner(bytes.NewReader(packfilebs)), storage)
 			if err != nil {
-				return nil, fetchDebugInfo, nil, fmt.Errorf("failed to parse packfile: %v", err)
+				return nil, fetchDebugInfo, blobFetchDebugInfo, nil, fmt.Errorf("failed to parse packfile: %v", err)
 			}
 			if _, err := parser.Parse(); err != nil {
-				return nil, fetchDebugInfo, nil, fmt.Errorf("failed to parse packfile: %v", err)
+				return nil, fetchDebugInfo, blobFetchDebugInfo, nil, fmt.Errorf("failed to parse packfile: %v", err)
 			}
 		}
 		mergeResult, err = merge.MergeTree(storage, treeCPFrom, treeCPTo, treeCPBase, resolver.Resolve)
 		if err != nil {
-			return nil, fetchDebugInfo, nil, fmt.Errorf("failed to merge the trees: %v", err)
+			return nil, fetchDebugInfo, blobFetchDebugInfo, nil, fmt.Errorf("failed to merge the trees: %v", err)
 		}
 	}
 
@@ -108,7 +108,7 @@ func PushSquashCherryPick(
 	}
 	hasConflict := len(cpResult.ConflictOpenFiles) > 0 || len(cpResult.BinaryConflictFiles) > 0 || len(cpResult.NonFileConflictFiles) > 0
 	if abortOnConflict && hasConflict {
-		return cpResult, fetchDebugInfo, nil, errors.New("conflict detected")
+		return cpResult, fetchDebugInfo, blobFetchDebugInfo, nil, errors.New("conflict detected")
 	}
 	commit := &object.Commit{
 		Message:      commitMessage,
@@ -119,11 +119,11 @@ func PushSquashCherryPick(
 	}
 	obj := storage.NewEncodedObject()
 	if err := commit.Encode(obj); err != nil {
-		return cpResult, fetchDebugInfo, nil, fmt.Errorf("failed to create a commit: %v", err)
+		return cpResult, fetchDebugInfo, blobFetchDebugInfo, nil, fmt.Errorf("failed to create a commit: %v", err)
 	}
 	commitHash, err := storage.SetEncodedObject(obj)
 	if err != nil {
-		return cpResult, fetchDebugInfo, nil, fmt.Errorf("failed to create a commit: %v", err)
+		return cpResult, fetchDebugInfo, blobFetchDebugInfo, nil, fmt.Errorf("failed to create a commit: %v", err)
 	}
 	cpResult.CommitHash = commitHash
 
@@ -134,7 +134,7 @@ func PushSquashCherryPick(
 	var buf bytes.Buffer
 	packEncoder := packfile.NewEncoder(&buf, storage, false)
 	if _, err := packEncoder.Encode(newHashes, 0); err != nil {
-		return cpResult, fetchDebugInfo, nil, fmt.Errorf("failed to create a packfile: %v", err)
+		return cpResult, fetchDebugInfo, blobFetchDebugInfo, nil, fmt.Errorf("failed to create a packfile: %v", err)
 	}
 
 	var destRef plumbing.ReferenceName
@@ -152,9 +152,9 @@ func PushSquashCherryPick(
 		},
 	})
 	if err != nil {
-		return cpResult, fetchDebugInfo, &pushDebugInfo, err
+		return cpResult, fetchDebugInfo, blobFetchDebugInfo, &pushDebugInfo, err
 	}
-	return cpResult, fetchDebugInfo, &pushDebugInfo, nil
+	return cpResult, fetchDebugInfo, blobFetchDebugInfo, &pushDebugInfo, nil
 }
 
 type conflictBlobCollector struct {
