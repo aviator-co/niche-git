@@ -59,7 +59,7 @@ var squashCherryPick = &cobra.Command{
 			r := plumbing.ReferenceName(squashCherryPickArgs.conflictRef)
 			conflictRef = &r
 		}
-		result, fetchDebugInfo, pushDebugInfo, pushErr := nichegit.PushSquashCherryPick(
+		result, fetchDebugInfo, blobFetchDebugInfo, pushDebugInfo, pushErr := nichegit.PushSquashCherryPick(
 			squashCherryPickArgs.repoURL,
 			client,
 			plumbing.NewHash(squashCherryPickArgs.cherryPickFrom),
@@ -74,8 +74,9 @@ var squashCherryPick = &cobra.Command{
 			squashCherryPickArgs.abortOnConflict,
 		)
 		output := squashCherryPickOutput{
-			FetchDebugInfo: fetchDebugInfo,
-			PushDebugInfo:  pushDebugInfo,
+			FetchDebugInfo:     fetchDebugInfo,
+			BlobFetchDebugInfo: blobFetchDebugInfo,
+			PushDebugInfo:      pushDebugInfo,
 		}
 		if result != nil {
 			output.CommitHash = result.CommitHash.String()
@@ -129,15 +130,16 @@ func newSignature(name, email, timestamp string) (object.Signature, error) {
 }
 
 type squashCherryPickOutput struct {
-	CommitHash            string               `json:"commitHash"`
-	CherryPickedFiles     []string             `json:"cherryPickedFiles"`
-	ConflictOpenFiles     []string             `json:"conflictOpenFiles"`
-	ConflictResolvedFiles []string             `json:"conflictResolvedFiles"`
-	BinaryConflictFiles   []string             `json:"binaryConflictFiles"`
-	NonFileConflictFiles  []string             `json:"nonFileConflictFiles"`
-	FetchDebugInfo        debug.FetchDebugInfo `json:"fetchDebugInfo"`
-	PushDebugInfo         *debug.PushDebugInfo `json:"pushDebugInfo"`
-	Error                 string               `json:"error,omitempty"`
+	CommitHash            string                `json:"commitHash"`
+	CherryPickedFiles     []string              `json:"cherryPickedFiles"`
+	ConflictOpenFiles     []string              `json:"conflictOpenFiles"`
+	ConflictResolvedFiles []string              `json:"conflictResolvedFiles"`
+	BinaryConflictFiles   []string              `json:"binaryConflictFiles"`
+	NonFileConflictFiles  []string              `json:"nonFileConflictFiles"`
+	FetchDebugInfo        debug.FetchDebugInfo  `json:"fetchDebugInfo"`
+	BlobFetchDebugInfo    *debug.FetchDebugInfo `json:"blobFetchDebugInfo"`
+	PushDebugInfo         *debug.PushDebugInfo  `json:"pushDebugInfo"`
+	Error                 string                `json:"error,omitempty"`
 }
 
 func init() {
