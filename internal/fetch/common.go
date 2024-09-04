@@ -60,7 +60,7 @@ func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]b
 		}
 	}
 	if err := v2Resp.Err(); err != nil {
-		return nil, debugInfo, fmt.Errorf("failed to parse the protov2 resposne: %v", err)
+		return nil, debugInfo, fmt.Errorf("failed to parse the protov2 response: %v", err)
 	}
 	debugInfo.PackfileSize = packfile.Len()
 	return packfile.Bytes(), debugInfo, nil
