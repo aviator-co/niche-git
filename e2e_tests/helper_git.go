@@ -26,7 +26,7 @@ func NewTempRepo(t *testing.T) *GitTestRepo {
 
 	settings := map[string]string{
 		"user.name":  "niche-git-test",
-		"user.email": "niche-git-test@nonexistant",
+		"user.email": "niche-git-test@nonexistent",
 	}
 	for k, v := range settings {
 		repo.Git(t, "config", k, v)

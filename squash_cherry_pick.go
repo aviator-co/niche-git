@@ -36,7 +36,7 @@ func PushSquashCherryPick(
 	client *http.Client,
 	commitHashCherryPickFrom, commitHashCherryPickTo, commitHashCherryPickBase plumbing.Hash,
 	commitMessage string,
-	author, comitter object.Signature,
+	author, committer object.Signature,
 	ref plumbing.ReferenceName,
 	conflictRef *plumbing.ReferenceName,
 	currentRefhash *plumbing.Hash,
@@ -113,7 +113,7 @@ func PushSquashCherryPick(
 	commit := &object.Commit{
 		Message:      commitMessage,
 		Author:       author,
-		Committer:    comitter,
+		Committer:    committer,
 		TreeHash:     mergeResult.TreeHash,
 		ParentHashes: []plumbing.Hash{commitHashCherryPickTo},
 	}
