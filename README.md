@@ -26,7 +26,7 @@ go run cmd/niche-git/main.go get-modified-files \
     --repo-url https://github.com/draftcode/some-private-repo \
     --commit-hash1 998122b45e63b2999d57a1af9e74761c0524e932 \
     --commit-hash2 f27a58920f7319cc7b62e55cf3095d1ee2ab1dde \
-    --basic-authz-user x-acess-token \
+    --basic-authz-user x-access-token \
     --basic-authz-password "$(gh auth token)"
 ```
 

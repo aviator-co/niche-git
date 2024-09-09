@@ -60,7 +60,7 @@ type getModifiedFilesOutput struct {
 
 func init() {
 	rootCmd.AddCommand(getModifiedFilesCmd)
-	getModifiedFilesCmd.Flags().StringVar(&getModifiedFilesArgs.repoURL, "repo-url", "", "Git reposiotry URL")
+	getModifiedFilesCmd.Flags().StringVar(&getModifiedFilesArgs.repoURL, "repo-url", "", "Git repository URL")
 	getModifiedFilesCmd.Flags().StringVar(&getModifiedFilesArgs.commitHash1, "commit-hash1", "", "First commit hash")
 	getModifiedFilesCmd.Flags().StringVar(&getModifiedFilesArgs.commitHash2, "commit-hash2", "", "Second commit hash")
 	_ = getModifiedFilesCmd.MarkFlagRequired("repo-url")
