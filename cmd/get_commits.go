@@ -61,7 +61,7 @@ type getCommitsOutput struct {
 
 func init() {
 	rootCmd.AddCommand(getCommitsCmd)
-	getCommitsCmd.Flags().StringVar(&getCommitsArgs.repoURL, "repo-url", "", "Git reposiotry URL")
+	getCommitsCmd.Flags().StringVar(&getCommitsArgs.repoURL, "repo-url", "", "Git repository URL")
 	getCommitsCmd.Flags().StringSliceVar(&getCommitsArgs.wantCommitHashes, "want-commit-hashes", nil, "Want commit hashes")
 	getCommitsCmd.Flags().StringSliceVar(&getCommitsArgs.haveCommitHashes, "have-commit-hashes", nil, "Have commit hashes")
 	_ = getCommitsCmd.MarkFlagRequired("repo-url")

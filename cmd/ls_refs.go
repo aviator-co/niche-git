@@ -51,7 +51,7 @@ type lsRefsOutput struct {
 
 func init() {
 	rootCmd.AddCommand(lsRefsCmd)
-	lsRefsCmd.Flags().StringVar(&lsRefsArgs.repoURL, "repo-url", "", "Git reposiotry URL")
+	lsRefsCmd.Flags().StringVar(&lsRefsArgs.repoURL, "repo-url", "", "Git repository URL")
 	lsRefsCmd.Flags().StringSliceVar(&lsRefsArgs.refPrefixes, "ref-prefixes", nil, "Ref prefixes")
 	_ = lsRefsCmd.MarkFlagRequired("repo-url")
 

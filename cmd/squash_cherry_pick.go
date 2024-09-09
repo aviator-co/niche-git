@@ -144,7 +144,7 @@ type squashCherryPickOutput struct {
 
 func init() {
 	rootCmd.AddCommand(squashCherryPick)
-	squashCherryPick.Flags().StringVar(&squashCherryPickArgs.repoURL, "repo-url", "", "Git reposiotry URL")
+	squashCherryPick.Flags().StringVar(&squashCherryPickArgs.repoURL, "repo-url", "", "Git repository URL")
 	squashCherryPick.Flags().StringVar(&squashCherryPickArgs.cherryPickFrom, "cherry-pick-from", "", "Commit hash where cherry-pick from")
 	squashCherryPick.Flags().StringVar(&squashCherryPickArgs.cherryPickTo, "cherry-pick-to", "", "Commit hash where cherry-pick to")
 	squashCherryPick.Flags().StringVar(&squashCherryPickArgs.cherryPickBase, "cherry-pick-base", "", "The merge base of the cherry-pick from. The changes from this commit to cherry-pick-from will be applied to cherry-pick-to.")
