@@ -1,3 +1,6 @@
+// Copyright 2024 Aviator Technologies, Inc.
+// SPDX-License-Identifier: MIT
+
 package e2e_tests
 
 import (

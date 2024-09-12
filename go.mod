@@ -3,6 +3,7 @@ module github.com/aviator-co/niche-git
 go 1.22.1
 
 require (
+	github.com/bmatcuk/doublestar v1.3.4
 	github.com/epiclabs-io/diff3 v0.0.0-20240325112732-ba77e92bf0e4
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/google/gitprotocolio v0.0.0-20210704173409-b5a56823ae52
