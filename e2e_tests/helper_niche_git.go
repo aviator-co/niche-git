@@ -1,3 +1,6 @@
+// Copyright 2024 Aviator Technologies, Inc.
+// SPDX-License-Identifier: MIT
+
 package e2e_tests
 
 import (
@@ -35,7 +38,7 @@ type NicheGitOutput struct {
 	Stderr   string
 }
 
-func cmd(t *testing.T, exe string, args ...string) NicheGitOutput {
+func cmdInternal(t *testing.T, exe string, args ...string) NicheGitOutput {
 	cmd := exec.Command(exe, args...)
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
@@ -69,7 +72,7 @@ func cmd(t *testing.T, exe string, args ...string) NicheGitOutput {
 }
 
 func NicheGit(t *testing.T, args ...string) NicheGitOutput {
-	return cmd(t, nicheGitCmdPath, args...)
+	return cmdInternal(t, nicheGitCmdPath, args...)
 }
 
 func RequireNicheGit(t *testing.T, args ...string) NicheGitOutput {

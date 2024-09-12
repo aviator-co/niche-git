@@ -1,3 +1,6 @@
+// Copyright 2024 Aviator Technologies, Inc.
+// SPDX-License-Identifier: MIT
+
 package e2e_tests
 
 import (
@@ -73,7 +76,9 @@ func (r *GitTestRepo) AddFile(t *testing.T, fp string) {
 
 func (r *GitTestRepo) CreateFile(t *testing.T, filename string, body string) string {
 	fp := filepath.Join(r.RepoDir, filename)
-	err := os.WriteFile(fp, []byte(body), 0644)
+	err := os.MkdirAll(filepath.Dir(fp), 0755)
+	require.NoError(t, err, "failed to create dirs: %s", filename)
+	err = os.WriteFile(fp, []byte(body), 0644)
 	require.NoError(t, err, "failed to write file: %s", filename)
 	return fp
 }
