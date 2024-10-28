@@ -37,6 +37,13 @@ var pipeCmd = &cobra.Command{
 		dec := json.NewDecoder(in)
 
 		switch pipeArg.command {
+		case "get-files":
+			input := GetFilesArgs{}
+			if err := dec.Decode(&input); err != nil {
+				return err
+			}
+			output := GetFiles(input)
+			return writeJSON(pipeArg.outputFile, output)
 		case "get-modified-files-regexp-matches":
 			input := GetModifiedFilesRegexpMatchesArgs{}
 			if err := dec.Decode(&input); err != nil {
