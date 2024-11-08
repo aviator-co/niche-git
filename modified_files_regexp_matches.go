@@ -203,7 +203,6 @@ func matchPattern(pattern ModifiedFilePattern, path string, status ModificationS
 	}
 	before := len(pattern.FileContentPattern.FindAll(content1, -1))
 	after := len(pattern.FileContentPattern.FindAll(content2, -1))
-	println(before, after)
 	if before == 0 && after == 0 {
 		// No match.
 		return nil, nil
