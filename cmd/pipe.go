@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 
+	nichegit "github.com/aviator-co/niche-git"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +52,15 @@ var pipeCmd = &cobra.Command{
 			}
 			output := GetModifiedFilesRegexpMatches(input)
 			return writeJSON(pipeArg.outputFile, output)
+		case "squash-push":
+			input := nichegit.SquashPushArgs{}
+			if err := dec.Decode(&input); err != nil {
+				return err
+			}
+			output := SquashPush(input)
+			return writeJSON(pipeArg.outputFile, output)
 		}
+
 		return fmt.Errorf("unknown command: %s", pipeArg.command)
 	},
 }
