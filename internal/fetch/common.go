@@ -85,6 +85,8 @@ func callProtocolV2HTTP(repoURL string, client *http.Client, body *bytes.Buffer)
 	if err != nil {
 		return nil, nil, err
 	}
+	req.Header.Set("Content-Type", "application/x-git-upload-pack-request")
+	req.Header.Set("Accept", "application/x-git-upload-pack-result")
 	req.Header.Set("Git-Protocol", "version=2")
 	if client == nil {
 		client = http.DefaultClient
