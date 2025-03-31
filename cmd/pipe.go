@@ -57,6 +57,13 @@ var pipeCmd = &cobra.Command{
 			}
 			output := SquashPush(input)
 			return writeJSON(pipeArg.outputFile, output)
+		case "update-refs":
+			input := nichegit.UpdateRefsArgs{}
+			if err := dec.Decode(&input); err != nil {
+				return err
+			}
+			output := UpdateRefs(input)
+			return writeJSON(pipeArg.outputFile, output)
 		}
 
 		return fmt.Errorf("unknown command: %s", pipeArg.command)
