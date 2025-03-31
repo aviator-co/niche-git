@@ -14,27 +14,25 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	squashCherryPickArgs struct {
-		repoURL         string
-		cherryPickFrom  string
-		cherryPickTo    string
-		cherryPickBase  string
-		commitMessage   string
-		author          string
-		authorEmail     string
-		authorTime      string
-		committer       string
-		committerEmail  string
-		committerTime   string
-		ref             string
-		conflictRef     string
-		currentRefHash  string
-		abortOnConflict bool
+var squashCherryPickArgs struct {
+	repoURL         string
+	cherryPickFrom  string
+	cherryPickTo    string
+	cherryPickBase  string
+	commitMessage   string
+	author          string
+	authorEmail     string
+	authorTime      string
+	committer       string
+	committerEmail  string
+	committerTime   string
+	ref             string
+	conflictRef     string
+	currentRefHash  string
+	abortOnConflict bool
 
-		outputFile string
-	}
-)
+	outputFile string
+}
 
 var squashCherryPick = &cobra.Command{
 	Use: "squash-cherry-pick",

@@ -5,6 +5,7 @@ package fetch
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -81,7 +82,7 @@ func callProtocolV2HTTP(repoURL string, client *http.Client, body *bytes.Buffer)
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest("POST", upURL, body)
+	req, err := http.NewRequestWithContext(context.TODO(), http.MethodPost, upURL, body)
 	if err != nil {
 		return nil, nil, err
 	}

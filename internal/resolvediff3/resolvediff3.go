@@ -63,8 +63,8 @@ func (r *Diff3Resolver) Resolve(parentPath string, entry1, entry2, entryBase *ob
 			if errors.Is(err, linereader.ErrBinaryContent) {
 				// If the content is binary, we keep both files.
 				r.BinaryConflictFiles = append(r.BinaryConflictFiles, path.Join(parentPath, entry1.Name))
-				entry1.Name = entry1.Name + r.sideARejectionSuffix
-				entry2.Name = entry2.Name + r.sideBRejectionSuffix
+				entry1.Name += r.sideARejectionSuffix
+				entry2.Name += r.sideBRejectionSuffix
 				return []object.TreeEntry{*entry1, *entry2}, nil
 			}
 			return nil, fmt.Errorf("cannot run diff3: %v", err)
@@ -90,11 +90,11 @@ func (r *Diff3Resolver) Resolve(parentPath string, entry1, entry2, entryBase *ob
 	}
 	var ret []object.TreeEntry
 	if entry1 != nil {
-		entry1.Name = entry1.Name + r.sideARejectionSuffix
+		entry1.Name += r.sideARejectionSuffix
 		ret = append(ret, *entry1)
 	}
 	if entry2 != nil {
-		entry2.Name = entry2.Name + r.sideBRejectionSuffix
+		entry2.Name += r.sideBRejectionSuffix
 		ret = append(ret, *entry2)
 	}
 	return ret, nil

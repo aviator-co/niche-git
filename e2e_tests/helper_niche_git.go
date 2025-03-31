@@ -39,6 +39,7 @@ type NicheGitOutput struct {
 }
 
 func cmdInternal(t *testing.T, exe string, args ...string) NicheGitOutput {
+	t.Helper()
 	cmd := exec.Command(exe, args...)
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
@@ -72,6 +73,7 @@ func cmdInternal(t *testing.T, exe string, args ...string) NicheGitOutput {
 }
 
 func NicheGit(t *testing.T, args ...string) NicheGitOutput {
+	t.Helper()
 	return cmdInternal(t, nicheGitCmdPath, args...)
 }
 

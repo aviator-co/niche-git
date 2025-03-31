@@ -13,15 +13,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	getModifiedFilesArgs struct {
-		repoURL     string
-		commitHash1 string
-		commitHash2 string
+var getModifiedFilesArgs struct {
+	repoURL     string
+	commitHash1 string
+	commitHash2 string
 
-		outputFile string
-	}
-)
+	outputFile string
+}
 
 var getModifiedFilesCmd = &cobra.Command{
 	Use: "get-modified-files",

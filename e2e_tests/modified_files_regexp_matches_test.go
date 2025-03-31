@@ -55,7 +55,7 @@ func TestModifiedFilesRegexpMatches(t *testing.T) {
 			},
 		},
 	)
-	require.Equal(t, "", output.Error)
+	require.Empty(t, output.Error)
 	require.Equal(t, []*nichegit.ModifiedFile{
 		{
 			Path:   "src/migrations/add_table_20240822.sql",

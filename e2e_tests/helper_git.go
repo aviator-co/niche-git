@@ -19,6 +19,7 @@ import (
 )
 
 func NewTempRepo(t *testing.T) *GitTestRepo {
+	t.Helper()
 	dir := t.TempDir()
 	init := exec.Command("git", "init", "--initial-branch=main")
 	init.Dir = dir
@@ -44,6 +45,7 @@ type GitTestRepo struct {
 }
 
 func (r *GitTestRepo) Git(t *testing.T, args ...string) string {
+	t.Helper()
 	cmd := exec.Command("git", args...)
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
@@ -71,19 +73,22 @@ func (r *GitTestRepo) Git(t *testing.T, args ...string) string {
 }
 
 func (r *GitTestRepo) AddFile(t *testing.T, fp string) {
+	t.Helper()
 	r.Git(t, "add", fp)
 }
 
 func (r *GitTestRepo) CreateFile(t *testing.T, filename string, body string) string {
+	t.Helper()
 	fp := filepath.Join(r.RepoDir, filename)
-	err := os.MkdirAll(filepath.Dir(fp), 0755)
+	err := os.MkdirAll(filepath.Dir(fp), 0o755)
 	require.NoError(t, err, "failed to create dirs: %s", filename)
-	err = os.WriteFile(fp, []byte(body), 0644)
+	err = os.WriteFile(fp, []byte(body), 0o600)
 	require.NoError(t, err, "failed to write file: %s", filename)
 	return fp
 }
 
 func (r *GitTestRepo) CommitFile(t *testing.T, filename string, body string) plumbing.Hash {
+	t.Helper()
 	filepath := r.CreateFile(t, filename, body)
 	r.AddFile(t, filepath)
 
@@ -93,6 +98,7 @@ func (r *GitTestRepo) CommitFile(t *testing.T, filename string, body string) plu
 }
 
 func (r *GitTestRepo) ReadFile(t *testing.T, filename string) string {
+	t.Helper()
 	fp := filepath.Join(r.RepoDir, filename)
 	bs, err := os.ReadFile(fp)
 	require.NoError(t, err, "failed to read file: %s", filename)

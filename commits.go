@@ -73,7 +73,6 @@ func convertCommitInfo(commit *object.Commit) *CommitInfo {
 	var parentHashes []string
 	for _, parent := range commit.ParentHashes {
 		parentHashes = append(parentHashes, parent.String())
-
 	}
 	return &CommitInfo{
 		Hash: commit.Hash.String(),
