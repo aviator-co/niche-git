@@ -13,13 +13,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	pipeArg struct {
-		command    string
-		inputFile  string
-		outputFile string
-	}
-)
+var pipeArg struct {
+	command    string
+	inputFile  string
+	outputFile string
+}
 
 var pipeCmd = &cobra.Command{
 	Use: "pipe",

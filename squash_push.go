@@ -6,7 +6,9 @@ package nichegit
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/aviator-co/niche-git/debug"
@@ -18,7 +20,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/format/packfile"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
-	"golang.org/x/exp/maps"
 )
 
 type SquashCommand struct {
@@ -124,7 +125,7 @@ func (s *squashPush) fetchCommits() error {
 		hashes[plumbing.NewHash(command.CommitHashStart)] = true
 		hashes[plumbing.NewHash(command.CommitHashEnd)] = true
 	}
-	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(s.args.RepoURL, s.client, maps.Keys(hashes))
+	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(s.args.RepoURL, s.client, slices.AppendSeq(make([]plumbing.Hash, 0, len(hashes)), maps.Keys(hashes)))
 	s.fetchDebugInfos = append(s.fetchDebugInfos, &fetchDebugInfo)
 	if err != nil {
 		return err

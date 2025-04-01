@@ -10,7 +10,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use: "niche-git",
+	Use:          "niche-git",
 	SilenceUsage: true,
 }
 

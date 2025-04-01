@@ -47,11 +47,12 @@ func LsRefs(repoURL string, client *http.Client, refPrefixes []string) ([]*RefIn
 		}
 		if len(parts) == 3 {
 			p := parts[2]
-			if strings.HasPrefix(p, "symref-target:") {
+			switch {
+			case strings.HasPrefix(p, "symref-target:"):
 				info.SymbolicTarget = strings.TrimPrefix(p, "symref-target:")
-			} else if strings.HasPrefix(p, "peeled:") {
+			case strings.HasPrefix(p, "peeled:"):
 				info.PeeledHash = strings.TrimPrefix(p, "peeled:")
-			} else {
+			default:
 				return nil, debugInfo, errors.New("invalid ref line: " + line)
 			}
 		}

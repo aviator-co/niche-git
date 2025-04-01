@@ -93,8 +93,8 @@ func TestSquashCherryPick_Resolve_Conflict(t *testing.T) {
 			CurrentRefHash: "",
 		},
 	)
-	require.Equal(t, "", output.Error)
-	require.Equal(t, 2, len(output.CommandResults))
+	require.Empty(t, output.Error)
+	require.Len(t, output.CommandResults, 2)
 
 	repo.Git(t, "checkout", "mq-tmp-branch")
 	require.Equal(t, `
@@ -106,7 +106,6 @@ func TestSquashCherryPick_Resolve_Conflict(t *testing.T) {
 
 	def baz():
 	    return 2
-	` + "\n",
-	repo.ReadFile(t, "file1"))
-
+	`+"\n",
+		repo.ReadFile(t, "file1"))
 }

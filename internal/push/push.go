@@ -88,7 +88,6 @@ func Push(repoURL string, client *http.Client, packfile *bytes.Buffer, refUpdate
 				Status: cs.Status,
 			})
 		}
-
 	}
 	if err != nil {
 		return debugInfo, err

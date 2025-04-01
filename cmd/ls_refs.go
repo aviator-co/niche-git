@@ -11,14 +11,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	lsRefsArgs struct {
-		repoURL     string
-		refPrefixes []string
+var lsRefsArgs struct {
+	repoURL     string
+	refPrefixes []string
 
-		outputFile string
-	}
-)
+	outputFile string
+}
 
 var lsRefsCmd = &cobra.Command{
 	Use: "ls-refs",

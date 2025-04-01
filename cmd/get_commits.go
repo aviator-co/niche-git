@@ -12,15 +12,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	getCommitsArgs struct {
-		repoURL          string
-		wantCommitHashes []string
-		haveCommitHashes []string
+var getCommitsArgs struct {
+	repoURL          string
+	wantCommitHashes []string
+	haveCommitHashes []string
 
-		outputFile string
-	}
-)
+	outputFile string
+}
 
 var getCommitsCmd = &cobra.Command{
 	Use: "get-commits",
