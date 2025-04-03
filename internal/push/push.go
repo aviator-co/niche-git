@@ -61,6 +61,7 @@ func Push(repoURL string, client *http.Client, packfile *bytes.Buffer, refUpdate
 	}
 
 	req := packp.NewReferenceUpdateRequestFromCapabilities(advRef.Capabilities)
+	_ = req.Capabilities.Add("atomic")
 	if packfile != nil {
 		req.Packfile = io.NopCloser(packfile)
 	}
