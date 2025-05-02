@@ -64,6 +64,13 @@ var pipeCmd = &cobra.Command{
 			}
 			output := UpdateRefs(input)
 			return writeJSON(pipeArg.outputFile, output)
+		case "backport":
+			input := nichegit.BackportArgs{}
+			if err := dec.Decode(&input); err != nil {
+				return err
+			}
+			output := Backport(input)
+			return writeJSON(pipeArg.outputFile, output)
 		}
 
 		return fmt.Errorf("unknown command: %s", pipeArg.command)
