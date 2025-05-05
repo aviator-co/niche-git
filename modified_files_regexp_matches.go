@@ -52,7 +52,7 @@ func FetchModifiedFilesWithRegexpMatch(
 	commitHash1, commitHash2 plumbing.Hash,
 	patterns map[string]ModifiedFilePattern,
 ) ([]*ModifiedFile, debug.FetchDebugInfo, *debug.FetchDebugInfo, error) {
-	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHash1, commitHash2})
+	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHash1, commitHash2}, 1)
 	if err != nil {
 		return nil, fetchDebugInfo, nil, err
 	}

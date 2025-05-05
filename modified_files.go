@@ -19,7 +19,7 @@ import (
 
 // FetchModifiedFiles returns the list of files that were modified between two commits.
 func FetchModifiedFiles(repoURL string, client *http.Client, commitHash1, commitHash2 plumbing.Hash) ([]string, debug.FetchDebugInfo, error) {
-	packfilebs, debugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHash1, commitHash2})
+	packfilebs, debugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHash1, commitHash2}, 1)
 	if err != nil {
 		return nil, debugInfo, err
 	}

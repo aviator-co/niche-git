@@ -42,7 +42,7 @@ func PushSquashCherryPick(
 	currentRefhash *plumbing.Hash,
 	abortOnConflict bool,
 ) (*PushSquashCherryPickResult, debug.FetchDebugInfo, *debug.FetchDebugInfo, *debug.PushDebugInfo, error) {
-	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHashCherryPickFrom, commitHashCherryPickBase, commitHashCherryPickTo})
+	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHashCherryPickFrom, commitHashCherryPickBase, commitHashCherryPickTo}, 1)
 	if err != nil {
 		return nil, fetchDebugInfo, nil, nil, err
 	}
