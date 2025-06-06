@@ -35,3 +35,5 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/google/gitprotocolio v0.0.0-20210704173409-b5a56823ae52 => github.com/aviator-co/gitprotocolio v0.0.0-20250606082751-d8d31eef1f7e
