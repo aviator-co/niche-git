@@ -9,9 +9,17 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	nichegit "github.com/aviator-co/niche-git"
+	"github.com/aviator-co/niche-git/gitprotocontext"
 	"github.com/spf13/cobra"
+)
+
+var (
+	gitFetchRetryCount int
+	gitFetchTimeout    time.Duration
+	gitPushTimeout     time.Duration
 )
 
 var pipeArg struct {
@@ -37,49 +45,53 @@ var pipeCmd = &cobra.Command{
 		dec := json.NewDecoder(in)
 
 		ctx := cmd.Context()
+		ctx = gitprotocontext.WithGitFetchRetryCount(ctx, gitFetchRetryCount)
+		ctx = gitprotocontext.WithGitFetchTimeout(ctx, gitFetchTimeout)
+		ctx = gitprotocontext.WithGitPushTimeout(ctx, gitPushTimeout)
 		client := &http.Client{Transport: &authnRoundtripper{}}
+
 		switch pipeArg.command {
 		case "get-files":
-			input := GetFilesArgs{}
-			if err := dec.Decode(&input); err != nil {
+			args := GetFilesArgs{}
+			if err := dec.Decode(&args); err != nil {
 				return err
 			}
-			output := GetFiles(ctx, input)
+			output := GetFiles(ctx, args)
 			return writeJSON(pipeArg.outputFile, output)
 		case "get-merge-base":
-			input := nichegit.GetMergeBaseArgs{}
-			if err := dec.Decode(&input); err != nil {
+			args := nichegit.GetMergeBaseArgs{}
+			if err := dec.Decode(&args); err != nil {
 				return err
 			}
-			output := nichegit.GetMergeBase(ctx, client, input)
+			output := nichegit.GetMergeBase(ctx, client, args)
 			return writeJSON(pipeArg.outputFile, output)
 		case "get-modified-files-regexp-matches":
-			input := GetModifiedFilesRegexpMatchesArgs{}
-			if err := dec.Decode(&input); err != nil {
+			args := GetModifiedFilesRegexpMatchesArgs{}
+			if err := dec.Decode(&args); err != nil {
 				return err
 			}
-			output := GetModifiedFilesRegexpMatches(ctx, input)
+			output := GetModifiedFilesRegexpMatches(ctx, args)
 			return writeJSON(pipeArg.outputFile, output)
 		case "squash-push":
-			input := nichegit.SquashPushArgs{}
-			if err := dec.Decode(&input); err != nil {
+			args := nichegit.SquashPushArgs{}
+			if err := dec.Decode(&args); err != nil {
 				return err
 			}
-			output := SquashPush(ctx, input)
+			output := nichegit.SquashPush(ctx, client, args)
 			return writeJSON(pipeArg.outputFile, output)
 		case "update-refs":
-			input := nichegit.UpdateRefsArgs{}
-			if err := dec.Decode(&input); err != nil {
+			args := nichegit.UpdateRefsArgs{}
+			if err := dec.Decode(&args); err != nil {
 				return err
 			}
-			output := UpdateRefs(ctx, input)
+			output := nichegit.UpdateRefs(ctx, client, args)
 			return writeJSON(pipeArg.outputFile, output)
 		case "backport":
-			input := nichegit.BackportArgs{}
-			if err := dec.Decode(&input); err != nil {
+			args := nichegit.BackportArgs{}
+			if err := dec.Decode(&args); err != nil {
 				return err
 			}
-			output := Backport(ctx, input)
+			output := nichegit.Backport(ctx, client, args)
 			return writeJSON(pipeArg.outputFile, output)
 		}
 
@@ -93,9 +105,12 @@ func init() {
 	pipeCmd.Flags().StringVar(&authzHeader, "authz-header", "", "Optional authorization header")
 	pipeCmd.Flags().StringVar(&basicAuthzUser, "basic-authz-user", "", "Optional HTTP Basic Auth user")
 	pipeCmd.Flags().StringVar(&basicAuthzPassword, "basic-authz-password", "", "Optional HTTP Basic Auth password")
+	pipeCmd.Flags().IntVar(&gitFetchRetryCount, "git-fetch-retry-count", 0, "Number of retries for git fetch operations")
+	pipeCmd.Flags().DurationVar(&gitFetchTimeout, "git-fetch-timeout", 0, "Timeout for git fetch operations")
+	pipeCmd.Flags().DurationVar(&gitPushTimeout, "git-push-timeout", 0, "Timeout for git push operations")
 
 	pipeCmd.Flags().StringVar(&pipeArg.command, "command", "", "Command to execute")
-	pipeCmd.Flags().StringVar(&pipeArg.inputFile, "input-file", "-", "Optional input file path. '-', which is the default, means stdin")
+	pipeCmd.Flags().StringVar(&pipeArg.inputFile, "args-file", "-", "Optional args file path. '-', which is the default, means stdin")
 	pipeCmd.Flags().StringVar(&pipeArg.outputFile, "output-file", "-", "Optional output file path. '-', which is the default, means stdout")
 	_ = pipeCmd.MarkFlagRequired("command")
 }

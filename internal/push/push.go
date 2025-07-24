@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/aviator-co/niche-git/debug"
+	"github.com/aviator-co/niche-git/gitprotocontext"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/protocol/packp"
 	gogittransport "github.com/go-git/go-git/v5/plumbing/transport"
@@ -22,6 +23,9 @@ func Push(ctx context.Context, repoURL string, client *http.Client, packfile *by
 	debugInfo := debug.PushDebugInfo{}
 	if packfile != nil {
 		debugInfo.PackfileSize = packfile.Len()
+	}
+	if client == nil {
+		client = http.DefaultClient
 	}
 
 	crt := &capturingRoundTripper{inner: client.Transport}
@@ -79,6 +83,12 @@ func Push(ctx context.Context, repoURL string, client *http.Client, packfile *by
 		}
 		req.Commands = append(req.Commands, cmd)
 	}
+	ctx, cancel := ctx, func() {}
+	if timeout := gitprotocontext.GitPushTimeout(ctx); timeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+	}
+	defer cancel()
+
 	status, err := sess.ReceivePack(ctx, req)
 	debugInfo.PushResponseHeaders = crt.lastResponseHTTPHeader
 	if status != nil {

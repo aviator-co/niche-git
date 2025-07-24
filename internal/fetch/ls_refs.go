@@ -42,7 +42,7 @@ func LsRefs(ctx context.Context, repoURL string, client *http.Client, refPrefixe
 	return refData, headers, nil
 }
 
-func createLsRefsRequest(refPrefixes []string) *bytes.Buffer {
+func createLsRefsRequest(refPrefixes []string) []byte {
 	chunks := []*gitprotocolio.ProtocolV2RequestChunk{
 		{
 			Command: "ls-refs",
@@ -75,5 +75,5 @@ func createLsRefsRequest(refPrefixes []string) *bytes.Buffer {
 		// Not possible to fail.
 		bs.Write(chunk.EncodeToPktLine())
 	}
-	return bs
+	return bs.Bytes()
 }

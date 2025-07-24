@@ -18,7 +18,7 @@ func FetchBlobPackfile(ctx context.Context, repoURL string, client *http.Client,
 	return fetchPackfile(ctx, repoURL, client, createBlobFetchRequest(oids))
 }
 
-func createBlobFetchRequest(oids []plumbing.Hash) *bytes.Buffer {
+func createBlobFetchRequest(oids []plumbing.Hash) []byte {
 	chunks := []*gitprotocolio.ProtocolV2RequestChunk{
 		{
 			Command: "fetch",
@@ -51,5 +51,5 @@ func createBlobFetchRequest(oids []plumbing.Hash) *bytes.Buffer {
 		// Not possible to fail.
 		bs.Write(chunk.EncodeToPktLine())
 	}
-	return bs
+	return bs.Bytes()
 }

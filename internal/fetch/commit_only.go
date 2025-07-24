@@ -18,7 +18,7 @@ func FetchCommitOnlyPackfile(ctx context.Context, repoURL string, client *http.C
 	return fetchPackfile(ctx, repoURL, client, createCommitOnlyFetchRequest(wantOids, haveOids))
 }
 
-func createCommitOnlyFetchRequest(wantOids, haveOids []plumbing.Hash) *bytes.Buffer {
+func createCommitOnlyFetchRequest(wantOids, haveOids []plumbing.Hash) []byte {
 	chunks := []*gitprotocolio.ProtocolV2RequestChunk{
 		{
 			Command: "fetch",
@@ -59,5 +59,5 @@ func createCommitOnlyFetchRequest(wantOids, haveOids []plumbing.Hash) *bytes.Buf
 		// Not possible to fail.
 		bs.Write(chunk.EncodeToPktLine())
 	}
-	return bs
+	return bs.Bytes()
 }

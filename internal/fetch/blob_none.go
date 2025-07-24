@@ -19,7 +19,7 @@ func FetchBlobNonePackfile(ctx context.Context, repoURL string, client *http.Cli
 	return fetchPackfile(ctx, repoURL, client, createBlobNoneFetchRequest(oids, depth))
 }
 
-func createBlobNoneFetchRequest(oids []plumbing.Hash, depth int) *bytes.Buffer {
+func createBlobNoneFetchRequest(oids []plumbing.Hash, depth int) []byte {
 	chunks := []*gitprotocolio.ProtocolV2RequestChunk{
 		{
 			Command: "fetch",
@@ -58,5 +58,5 @@ func createBlobNoneFetchRequest(oids []plumbing.Hash, depth int) *bytes.Buffer {
 		// Not possible to fail.
 		bs.Write(chunk.EncodeToPktLine())
 	}
-	return bs
+	return bs.Bytes()
 }
