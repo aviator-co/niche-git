@@ -4,12 +4,13 @@
 package cmd
 
 import (
+	"context"
 	"net/http"
 
 	nichegit "github.com/aviator-co/niche-git"
 )
 
-func Backport(args nichegit.BackportArgs) nichegit.BackportOutput {
+func Backport(ctx context.Context, args nichegit.BackportArgs) nichegit.BackportOutput {
 	client := &http.Client{Transport: &authnRoundtripper{}}
-	return nichegit.Backport(client, args)
+	return nichegit.Backport(ctx, client, args)
 }

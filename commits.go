@@ -5,6 +5,7 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -43,8 +44,8 @@ type CommitInfo struct {
 	ParentHashes []string `json:"parentHashes"`
 }
 
-func FetchCommits(repoURL string, client *http.Client, wantCommitHashes, haveCommitHashes []plumbing.Hash) ([]*CommitInfo, debug.FetchDebugInfo, error) {
-	packfilebs, debugInfo, err := fetch.FetchCommitOnlyPackfile(repoURL, client, wantCommitHashes, haveCommitHashes)
+func FetchCommits(ctx context.Context, repoURL string, client *http.Client, wantCommitHashes, haveCommitHashes []plumbing.Hash) ([]*CommitInfo, debug.FetchDebugInfo, error) {
+	packfilebs, debugInfo, err := fetch.FetchCommitOnlyPackfile(ctx, repoURL, client, wantCommitHashes, haveCommitHashes)
 	if err != nil {
 		return nil, debugInfo, err
 	}

@@ -5,6 +5,7 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 
@@ -43,7 +44,7 @@ type getMergeBase struct {
 	mergeBases []FoundMergeBase
 }
 
-func GetMergeBase(client *http.Client, args GetMergeBaseArgs) GetMergeBaseOutput {
+func GetMergeBase(ctx context.Context, client *http.Client, args GetMergeBaseArgs) GetMergeBaseOutput {
 	commitHashes := make([]plumbing.Hash, len(args.CommitHashes))
 	for i, hash := range args.CommitHashes {
 		commitHashes[i] = plumbing.NewHash(hash)
@@ -55,7 +56,7 @@ func GetMergeBase(client *http.Client, args GetMergeBaseArgs) GetMergeBaseOutput
 		commitHashes: commitHashes,
 		storage:      memory.NewStorage(),
 	}
-	err := gmb.run()
+	err := gmb.run(ctx)
 	output := GetMergeBaseOutput{
 		MergeBases:      gmb.mergeBases,
 		FetchDebugInfos: gmb.fetchDebugInfos,
@@ -66,8 +67,8 @@ func GetMergeBase(client *http.Client, args GetMergeBaseArgs) GetMergeBaseOutput
 	return output
 }
 
-func (gmb *getMergeBase) run() error {
-	if err := gmb.fetch(); err != nil {
+func (gmb *getMergeBase) run(ctx context.Context) error {
+	if err := gmb.fetch(ctx); err != nil {
 		return err
 	}
 	if err := gmb.setGenerationNumbers(); err != nil {
@@ -79,8 +80,9 @@ func (gmb *getMergeBase) run() error {
 	return nil
 }
 
-func (gmb *getMergeBase) fetch() error {
+func (gmb *getMergeBase) fetch(ctx context.Context) error {
 	packfilebs, fetchDebugInfo, err := fetch.FetchCommitOnlyPackfile(
+		ctx,
 		gmb.repoURL,
 		gmb.client,
 		gmb.commitHashes,

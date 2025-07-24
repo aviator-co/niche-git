@@ -5,6 +5,7 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,8 +19,8 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 )
 
-func FetchFiles(repoURL string, client *http.Client, commitHash plumbing.Hash, filePaths []string) (map[string]string, debug.FetchDebugInfo, *debug.FetchDebugInfo, error) {
-	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHash}, 1)
+func FetchFiles(ctx context.Context, repoURL string, client *http.Client, commitHash plumbing.Hash, filePaths []string) (map[string]string, debug.FetchDebugInfo, *debug.FetchDebugInfo, error) {
+	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(ctx, repoURL, client, []plumbing.Hash{commitHash}, 1)
 	if err != nil {
 		return nil, fetchDebugInfo, nil, err
 	}
@@ -56,7 +57,7 @@ func FetchFiles(repoURL string, client *http.Client, commitHash plumbing.Hash, f
 		blobHashes = append(blobHashes, blobHash)
 	}
 
-	packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(repoURL, client, blobHashes)
+	packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(ctx, repoURL, client, blobHashes)
 	blobFetchDebugInfo := &fetchBlobDebugInfo
 	if err != nil {
 		return nil, fetchDebugInfo, blobFetchDebugInfo, err

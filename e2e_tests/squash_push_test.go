@@ -62,6 +62,7 @@ func TestSquashCherryPick_Resolve_Conflict(t *testing.T) {
 	`)
 
 	output := cmd.SquashPush(
+		t.Context(),
 		nichegit.SquashPushArgs{
 			RepoURL:        "file://" + repo.RepoDir,
 			BaseCommitHash: baseHash2.String(),

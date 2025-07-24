@@ -37,6 +37,7 @@ var squashCherryPickArgs struct {
 var squashCherryPick = &cobra.Command{
 	Use: "squash-cherry-pick",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
 		var currentRefhash *plumbing.Hash
 		if squashCherryPickArgs.currentRefHash != "" {
 			hash := plumbing.NewHash(squashCherryPickArgs.currentRefHash)
@@ -58,6 +59,7 @@ var squashCherryPick = &cobra.Command{
 			conflictRef = &r
 		}
 		result, fetchDebugInfo, blobFetchDebugInfo, pushDebugInfo, pushErr := nichegit.PushSquashCherryPick(
+			ctx,
 			squashCherryPickArgs.repoURL,
 			client,
 			plumbing.NewHash(squashCherryPickArgs.cherryPickFrom),

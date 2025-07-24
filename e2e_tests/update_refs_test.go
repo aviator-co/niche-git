@@ -17,6 +17,7 @@ func TestUpdateRefs(t *testing.T) {
 
 	baseHash := repo.CommitFile(t, "file1", "test")
 	output := cmd.UpdateRefs(
+		t.Context(),
 		nichegit.UpdateRefsArgs{
 			RepoURL: "file://" + repo.RepoDir,
 			RefUpdateCommands: []nichegit.RefUpdateCommand{
@@ -38,6 +39,7 @@ func TestUpdateRefs_Conflict_Atomic(t *testing.T) {
 	baseHash := repo.CommitFile(t, "file1", "test")
 	repo.Git(t, "switch", "--detach", "HEAD")
 	output := cmd.UpdateRefs(
+		t.Context(),
 		nichegit.UpdateRefsArgs{
 			RepoURL: "file://" + repo.RepoDir,
 			RefUpdateCommands: []nichegit.RefUpdateCommand{
@@ -66,6 +68,7 @@ func TestUpdateRefs_PreconditionMismatch(t *testing.T) {
 	anotherHash := repo.CommitFile(t, "file2", "test")
 
 	output := cmd.UpdateRefs(
+		t.Context(),
 		nichegit.UpdateRefsArgs{
 			RepoURL: "file://" + repo.RepoDir,
 			RefUpdateCommands: []nichegit.RefUpdateCommand{

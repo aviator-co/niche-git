@@ -5,6 +5,7 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -32,6 +33,7 @@ type PushSquashCherryPickResult struct {
 // PushSquashCherryPick creates a new commit with the changes between the two commits and push to
 // the specified ref.
 func PushSquashCherryPick(
+	ctx context.Context,
 	repoURL string,
 	client *http.Client,
 	commitHashCherryPickFrom, commitHashCherryPickTo, commitHashCherryPickBase plumbing.Hash,
@@ -42,7 +44,7 @@ func PushSquashCherryPick(
 	currentRefhash *plumbing.Hash,
 	abortOnConflict bool,
 ) (*PushSquashCherryPickResult, debug.FetchDebugInfo, *debug.FetchDebugInfo, *debug.PushDebugInfo, error) {
-	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHashCherryPickFrom, commitHashCherryPickBase, commitHashCherryPickTo}, 1)
+	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(ctx, repoURL, client, []plumbing.Hash{commitHashCherryPickFrom, commitHashCherryPickBase, commitHashCherryPickTo}, 1)
 	if err != nil {
 		return nil, fetchDebugInfo, nil, nil, err
 	}
@@ -80,7 +82,7 @@ func PushSquashCherryPick(
 	if len(mergeResult.FilesConflict) != 0 {
 		// Need to fetch blobs and resolve the conflicts.
 		if len(collector.blobHashes) > 0 {
-			packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(repoURL, client, collector.blobHashes)
+			packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(ctx, repoURL, client, collector.blobHashes)
 			blobFetchDebugInfo = &fetchBlobDebugInfo
 			if err != nil {
 				return nil, fetchDebugInfo, blobFetchDebugInfo, nil, err
@@ -144,7 +146,7 @@ func PushSquashCherryPick(
 		destRef = ref
 	}
 
-	pushDebugInfo, err := push.Push(repoURL, client, &buf, []push.RefUpdate{
+	pushDebugInfo, err := push.Push(ctx, repoURL, client, &buf, []push.RefUpdate{
 		{
 			Name:    destRef,
 			OldHash: currentRefhash,

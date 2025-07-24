@@ -25,6 +25,7 @@ func TestGetMergeBase(t *testing.T) {
 	h6 := repo.CommitFile(t, "file", "6")
 
 	output := nichegit.GetMergeBase(
+		t.Context(),
 		http.DefaultClient,
 		nichegit.GetMergeBaseArgs{
 			RepoURL: "file://" + repo.RepoDir,
@@ -65,6 +66,7 @@ func TestGetMergeBase_Merge(t *testing.T) {
 	h8 := repo.CommitFile(t, "file", "8")
 
 	output := nichegit.GetMergeBase(
+		t.Context(),
 		http.DefaultClient,
 		nichegit.GetMergeBaseArgs{
 			RepoURL: "file://" + repo.RepoDir,

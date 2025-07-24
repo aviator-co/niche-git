@@ -62,6 +62,7 @@ func TestBackport_Resolve_Conflict(t *testing.T) {
 	`)
 
 	output := cmd.Backport(
+		t.Context(),
 		nichegit.BackportArgs{
 			RepoURL:        "file://" + repo.RepoDir,
 			BaseCommitHash: baseHash2.String(),

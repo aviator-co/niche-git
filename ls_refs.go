@@ -4,6 +4,7 @@
 package nichegit
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -28,8 +29,8 @@ type RefInfo struct {
 	SymbolicTarget string `json:"symbolicTarget,omitempty"`
 }
 
-func LsRefs(repoURL string, client *http.Client, refPrefixes []string) ([]*RefInfo, debug.LsRefsDebugInfo, error) {
-	rawRefData, headers, err := fetch.LsRefs(repoURL, client, refPrefixes)
+func LsRefs(ctx context.Context, repoURL string, client *http.Client, refPrefixes []string) ([]*RefInfo, debug.LsRefsDebugInfo, error) {
+	rawRefData, headers, err := fetch.LsRefs(ctx, repoURL, client, refPrefixes)
 	debugInfo := debug.LsRefsDebugInfo{ResponseHeaders: headers}
 	if err != nil {
 		return nil, debugInfo, err

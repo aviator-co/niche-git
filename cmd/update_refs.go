@@ -4,12 +4,13 @@
 package cmd
 
 import (
+	"context"
 	"net/http"
 
 	nichegit "github.com/aviator-co/niche-git"
 )
 
-func UpdateRefs(args nichegit.UpdateRefsArgs) nichegit.UpdateRefsOutput {
+func UpdateRefs(ctx context.Context, args nichegit.UpdateRefsArgs) nichegit.UpdateRefsOutput {
 	client := &http.Client{Transport: &authnRoundtripper{}}
-	return nichegit.UpdateRefs(client, args)
+	return nichegit.UpdateRefs(ctx, client, args)
 }

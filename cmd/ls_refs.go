@@ -21,8 +21,9 @@ var lsRefsArgs struct {
 var lsRefsCmd = &cobra.Command{
 	Use: "ls-refs",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
 		client := &http.Client{Transport: &authnRoundtripper{}}
-		refs, debugInfo, fetchErr := nichegit.LsRefs(lsRefsArgs.repoURL, client, lsRefsArgs.refPrefixes)
+		refs, debugInfo, fetchErr := nichegit.LsRefs(ctx, lsRefsArgs.repoURL, client, lsRefsArgs.refPrefixes)
 		if refs == nil {
 			// Always create an empty slice for JSON output.
 			refs = []*nichegit.RefInfo{}

@@ -5,6 +5,7 @@ package fetch
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 
 	"github.com/aviator-co/niche-git/debug"
@@ -13,8 +14,8 @@ import (
 )
 
 // FetchBlobPackfile fetches a packfile from a remote repository for blobs.
-func FetchBlobPackfile(repoURL string, client *http.Client, oids []plumbing.Hash) ([]byte, debug.FetchDebugInfo, error) {
-	return fetchPackfile(repoURL, client, createBlobFetchRequest(oids))
+func FetchBlobPackfile(ctx context.Context, repoURL string, client *http.Client, oids []plumbing.Hash) ([]byte, debug.FetchDebugInfo, error) {
+	return fetchPackfile(ctx, repoURL, client, createBlobFetchRequest(oids))
 }
 
 func createBlobFetchRequest(oids []plumbing.Hash) *bytes.Buffer {

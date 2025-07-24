@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"context"
 	"net/http"
 
 	nichegit "github.com/aviator-co/niche-git"
@@ -24,9 +25,10 @@ type getFilesOutput struct {
 	Error              string                `json:"error,omitempty"`
 }
 
-func GetFiles(args GetFilesArgs) *getFilesOutput {
+func GetFiles(ctx context.Context, args GetFilesArgs) *getFilesOutput {
 	client := &http.Client{Transport: &authnRoundtripper{}}
 	files, fetchDebugInfo, blobFetchDebugInfo, err := nichegit.FetchFiles(
+		ctx,
 		args.RepoURL,
 		client,
 		plumbing.NewHash(args.CommitHash),

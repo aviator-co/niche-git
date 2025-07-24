@@ -40,6 +40,7 @@ func TestModifiedFilesRegexpMatches(t *testing.T) {
 	targetHash := repo.CommitFile(t, "src/migrations/add_table_20240822.sql", "")
 
 	output := cmd.GetModifiedFilesRegexpMatches(
+		t.Context(),
 		cmd.GetModifiedFilesRegexpMatchesArgs{
 			RepoURL:     "file://" + repo.RepoDir,
 			CommitHash1: baseHash.String(),

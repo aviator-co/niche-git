@@ -26,6 +26,7 @@ var getModifiedFilesCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := &http.Client{Transport: &authnRoundtripper{}}
 		files, debugInfo, fetchErr := nichegit.FetchModifiedFiles(
+			cmd.Context(),
 			getModifiedFilesArgs.repoURL,
 			client,
 			plumbing.NewHash(getModifiedFilesArgs.commitHash1),

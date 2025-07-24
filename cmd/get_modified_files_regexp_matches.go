@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"context"
 	"net/http"
 	"regexp"
 
@@ -31,7 +32,7 @@ type getModifiedFilesRegexpMatchesOutput struct {
 	Error              string                   `json:"error,omitempty"`
 }
 
-func GetModifiedFilesRegexpMatches(args GetModifiedFilesRegexpMatchesArgs) *getModifiedFilesRegexpMatchesOutput {
+func GetModifiedFilesRegexpMatches(ctx context.Context, args GetModifiedFilesRegexpMatchesArgs) *getModifiedFilesRegexpMatchesOutput {
 	patterns := make(map[string]nichegit.ModifiedFilePattern)
 	for key, value := range args.Patterns {
 		v := nichegit.ModifiedFilePattern{
@@ -49,6 +50,7 @@ func GetModifiedFilesRegexpMatches(args GetModifiedFilesRegexpMatchesArgs) *getM
 
 	client := &http.Client{Transport: &authnRoundtripper{}}
 	files, fetchDebugInfo, blobFetchDebugInfo, err := nichegit.FetchModifiedFilesWithRegexpMatch(
+		ctx,
 		args.RepoURL,
 		client,
 		plumbing.NewHash(args.CommitHash1),

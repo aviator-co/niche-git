@@ -19,8 +19,8 @@ import (
 	"github.com/google/gitprotocolio"
 )
 
-func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]byte, debug.FetchDebugInfo, error) {
-	rd, headers, err := callProtocolV2(repoURL, client, body)
+func fetchPackfile(ctx context.Context, repoURL string, client *http.Client, body *bytes.Buffer) ([]byte, debug.FetchDebugInfo, error) {
+	rd, headers, err := callProtocolV2(ctx, repoURL, client, body)
 	debugInfo := debug.FetchDebugInfo{ResponseHeaders: headers}
 	if err != nil {
 		return nil, debugInfo, err
@@ -67,22 +67,22 @@ func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]b
 	return packfile.Bytes(), debugInfo, nil
 }
 
-func callProtocolV2(repoURL string, client *http.Client, body *bytes.Buffer) (io.ReadCloser, http.Header, error) {
+func callProtocolV2(ctx context.Context, repoURL string, client *http.Client, body *bytes.Buffer) (io.ReadCloser, http.Header, error) {
 	if strings.HasPrefix(repoURL, "http") {
-		return callProtocolV2HTTP(repoURL, client, body)
+		return callProtocolV2HTTP(ctx, repoURL, client, body)
 	} else if strings.HasPrefix(repoURL, "file") {
-		rd, err := callProtocolV2File(repoURL, body)
+		rd, err := callProtocolV2File(ctx, repoURL, body)
 		return rd, http.Header{}, err
 	}
 	return nil, nil, errors.New("unsupported protocol")
 }
 
-func callProtocolV2HTTP(repoURL string, client *http.Client, body *bytes.Buffer) (io.ReadCloser, http.Header, error) {
+func callProtocolV2HTTP(ctx context.Context, repoURL string, client *http.Client, body *bytes.Buffer) (io.ReadCloser, http.Header, error) {
 	upURL, err := buildUploadPackURL(repoURL)
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequestWithContext(context.TODO(), http.MethodPost, upURL, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, upURL, body)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -102,9 +102,9 @@ func callProtocolV2HTTP(repoURL string, client *http.Client, body *bytes.Buffer)
 	return resp.Body, resp.Header, nil
 }
 
-func callProtocolV2File(repoURL string, body *bytes.Buffer) (io.ReadCloser, error) {
+func callProtocolV2File(ctx context.Context, repoURL string, body *bytes.Buffer) (io.ReadCloser, error) {
 	fpath := strings.TrimPrefix(repoURL, "file://")
-	cmd := exec.CommandContext(context.TODO(), "git", "-c", "uploadpack.allowFilter=1", "upload-pack", "--stateless-rpc", fpath)
+	cmd := exec.CommandContext(ctx, "git", "-c", "uploadpack.allowFilter=1", "upload-pack", "--stateless-rpc", fpath)
 	cmd.Stdin = body
 	cmd.Stderr = os.Stderr
 	stdout := bytes.NewBuffer(nil)

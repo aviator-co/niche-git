@@ -5,6 +5,7 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"maps"
 	"net/http"
@@ -42,13 +43,13 @@ type BackportOutput struct {
 	Error           string                  `json:"error,omitempty"`
 }
 
-func Backport(client *http.Client, args BackportArgs) BackportOutput {
+func Backport(ctx context.Context, client *http.Client, args BackportArgs) BackportOutput {
 	s := &backport{
 		client:  client,
 		args:    args,
 		storage: memory.NewStorage(),
 	}
-	err := s.run()
+	err := s.run(ctx)
 	output := BackportOutput{
 		CommandResults:  s.commandResults,
 		FetchDebugInfos: s.fetchDebugInfos,
@@ -70,33 +71,33 @@ type backport struct {
 	commandResults  []BackportCommandResult
 }
 
-func (s *backport) run() error {
-	if err := s.fetchCommits(); err != nil {
+func (s *backport) run(ctx context.Context) error {
+	if err := s.fetchCommits(ctx); err != nil {
 		return err
 	}
 	currentCommitHash := plumbing.NewHash(s.args.BaseCommitHash)
 	for _, commitStr := range s.args.BackportCommits {
 		commitHash := plumbing.NewHash(commitStr)
-		commandResult, err := s.cherrypickCommit(currentCommitHash, commitHash)
+		commandResult, err := s.cherrypickCommit(ctx, currentCommitHash, commitHash)
 		s.commandResults = append(s.commandResults, commandResult)
 		if err != nil {
 			return err
 		}
 		currentCommitHash = plumbing.NewHash(commandResult.CommitHash)
 	}
-	if err := s.push(currentCommitHash); err != nil {
+	if err := s.push(ctx, currentCommitHash); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *backport) fetchCommits() error {
+func (s *backport) fetchCommits(ctx context.Context) error {
 	hashes := make(map[plumbing.Hash]bool)
 	hashes[plumbing.NewHash(s.args.BaseCommitHash)] = true
 	for _, commitStr := range s.args.BackportCommits {
 		hashes[plumbing.NewHash(commitStr)] = true
 	}
-	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(s.args.RepoURL, s.client, slices.AppendSeq(make([]plumbing.Hash, 0, len(hashes)), maps.Keys(hashes)), 2)
+	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(ctx, s.args.RepoURL, s.client, slices.AppendSeq(make([]plumbing.Hash, 0, len(hashes)), maps.Keys(hashes)), 2)
 	s.fetchDebugInfos = append(s.fetchDebugInfos, &fetchDebugInfo)
 	if err != nil {
 		return err
@@ -112,7 +113,7 @@ func (s *backport) fetchCommits() error {
 	return nil
 }
 
-func (s *backport) cherrypickCommit(currentCommitHash plumbing.Hash, commitHash plumbing.Hash) (BackportCommandResult, error) {
+func (s *backport) cherrypickCommit(ctx context.Context, currentCommitHash plumbing.Hash, commitHash plumbing.Hash) (BackportCommandResult, error) {
 	currentCommit, err := object.GetCommit(s.storage, currentCommitHash)
 	if err != nil {
 		return BackportCommandResult{}, fmt.Errorf("cannot find %q in the fetched packfile: %v", currentCommitHash.String(), err)
@@ -156,7 +157,7 @@ func (s *backport) cherrypickCommit(currentCommitHash plumbing.Hash, commitHash 
 					missingBlobHashes = append(missingBlobHashes, hash)
 				}
 			}
-			packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(s.args.RepoURL, s.client, missingBlobHashes)
+			packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(ctx, s.args.RepoURL, s.client, missingBlobHashes)
 			s.fetchDebugInfos = append(s.fetchDebugInfos, &fetchBlobDebugInfo)
 			if err != nil {
 				return BackportCommandResult{}, err
@@ -207,7 +208,7 @@ func (s *backport) cherrypickCommit(currentCommitHash plumbing.Hash, commitHash 
 	return result, nil
 }
 
-func (s *backport) push(commitHash plumbing.Hash) error {
+func (s *backport) push(ctx context.Context, commitHash plumbing.Hash) error {
 	var buf bytes.Buffer
 	packEncoder := packfile.NewEncoder(&buf, s.storage, false)
 	if _, err := packEncoder.Encode(s.newObjects, 0); err != nil {
@@ -220,7 +221,7 @@ func (s *backport) push(commitHash plumbing.Hash) error {
 		currentRefHash = &hash
 	}
 
-	pushDebugInfo, err := push.Push(s.args.RepoURL, s.client, &buf, []push.RefUpdate{
+	pushDebugInfo, err := push.Push(ctx, s.args.RepoURL, s.client, &buf, []push.RefUpdate{
 		{
 			Name:    plumbing.ReferenceName(s.args.Ref),
 			OldHash: currentRefHash,

@@ -4,12 +4,13 @@
 package cmd
 
 import (
+	"context"
 	"net/http"
 
 	nichegit "github.com/aviator-co/niche-git"
 )
 
-func SquashPush(args nichegit.SquashPushArgs) nichegit.SquashPushOutput {
+func SquashPush(ctx context.Context, args nichegit.SquashPushArgs) nichegit.SquashPushOutput {
 	client := &http.Client{Transport: &authnRoundtripper{}}
-	return nichegit.SquashPush(client, args)
+	return nichegit.SquashPush(ctx, client, args)
 }

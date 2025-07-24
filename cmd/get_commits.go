@@ -23,6 +23,7 @@ var getCommitsArgs struct {
 var getCommitsCmd = &cobra.Command{
 	Use: "get-commits",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
 		var wantCommitHashes []plumbing.Hash
 		for _, s := range getCommitsArgs.wantCommitHashes {
 			wantCommitHashes = append(wantCommitHashes, plumbing.NewHash(s))
@@ -32,7 +33,7 @@ var getCommitsCmd = &cobra.Command{
 			haveCommitHashes = append(haveCommitHashes, plumbing.NewHash(s))
 		}
 		client := &http.Client{Transport: &authnRoundtripper{}}
-		commits, debugInfo, fetchErr := nichegit.FetchCommits(getCommitsArgs.repoURL, client, wantCommitHashes, haveCommitHashes)
+		commits, debugInfo, fetchErr := nichegit.FetchCommits(ctx, getCommitsArgs.repoURL, client, wantCommitHashes, haveCommitHashes)
 		if commits == nil {
 			// Always create an empty slice for JSON output.
 			commits = []*nichegit.CommitInfo{}

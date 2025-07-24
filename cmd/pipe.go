@@ -36,6 +36,7 @@ var pipeCmd = &cobra.Command{
 		}
 		dec := json.NewDecoder(in)
 
+		ctx := cmd.Context()
 		client := &http.Client{Transport: &authnRoundtripper{}}
 		switch pipeArg.command {
 		case "get-files":
@@ -43,42 +44,42 @@ var pipeCmd = &cobra.Command{
 			if err := dec.Decode(&input); err != nil {
 				return err
 			}
-			output := GetFiles(input)
+			output := GetFiles(ctx, input)
 			return writeJSON(pipeArg.outputFile, output)
 		case "get-merge-base":
 			input := nichegit.GetMergeBaseArgs{}
 			if err := dec.Decode(&input); err != nil {
 				return err
 			}
-			output := nichegit.GetMergeBase(client, input)
+			output := nichegit.GetMergeBase(ctx, client, input)
 			return writeJSON(pipeArg.outputFile, output)
 		case "get-modified-files-regexp-matches":
 			input := GetModifiedFilesRegexpMatchesArgs{}
 			if err := dec.Decode(&input); err != nil {
 				return err
 			}
-			output := GetModifiedFilesRegexpMatches(input)
+			output := GetModifiedFilesRegexpMatches(ctx, input)
 			return writeJSON(pipeArg.outputFile, output)
 		case "squash-push":
 			input := nichegit.SquashPushArgs{}
 			if err := dec.Decode(&input); err != nil {
 				return err
 			}
-			output := SquashPush(input)
+			output := SquashPush(ctx, input)
 			return writeJSON(pipeArg.outputFile, output)
 		case "update-refs":
 			input := nichegit.UpdateRefsArgs{}
 			if err := dec.Decode(&input); err != nil {
 				return err
 			}
-			output := UpdateRefs(input)
+			output := UpdateRefs(ctx, input)
 			return writeJSON(pipeArg.outputFile, output)
 		case "backport":
 			input := nichegit.BackportArgs{}
 			if err := dec.Decode(&input); err != nil {
 				return err
 			}
-			output := Backport(input)
+			output := Backport(ctx, input)
 			return writeJSON(pipeArg.outputFile, output)
 		}
 

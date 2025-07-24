@@ -5,6 +5,7 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,12 +48,13 @@ type ModifiedFile struct {
 }
 
 func FetchModifiedFilesWithRegexpMatch(
+	ctx context.Context,
 	repoURL string,
 	client *http.Client,
 	commitHash1, commitHash2 plumbing.Hash,
 	patterns map[string]ModifiedFilePattern,
 ) ([]*ModifiedFile, debug.FetchDebugInfo, *debug.FetchDebugInfo, error) {
-	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHash1, commitHash2}, 1)
+	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(ctx, repoURL, client, []plumbing.Hash{commitHash1, commitHash2}, 1)
 	if err != nil {
 		return nil, fetchDebugInfo, nil, err
 	}
@@ -80,7 +82,7 @@ func FetchModifiedFilesWithRegexpMatch(
 		return nil, fetchDebugInfo, nil, fmt.Errorf("failed to take file diffs: %v", err)
 	}
 
-	packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(repoURL, client, getBlobHashes(modified))
+	packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(ctx, repoURL, client, getBlobHashes(modified))
 	blobFetchDebugInfo := &fetchBlobDebugInfo
 	if err != nil {
 		return nil, fetchDebugInfo, blobFetchDebugInfo, err
