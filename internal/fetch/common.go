@@ -104,7 +104,7 @@ func callProtocolV2HTTP(repoURL string, client *http.Client, body *bytes.Buffer)
 
 func callProtocolV2File(repoURL string, body *bytes.Buffer) (io.ReadCloser, error) {
 	fpath := strings.TrimPrefix(repoURL, "file://")
-	cmd := exec.Command("git", "-c", "uploadpack.allowFilter=1", "upload-pack", "--stateless-rpc", fpath)
+	cmd := exec.CommandContext(context.TODO(), "git", "-c", "uploadpack.allowFilter=1", "upload-pack", "--stateless-rpc", fpath)
 	cmd.Stdin = body
 	cmd.Stderr = os.Stderr
 	stdout := bytes.NewBuffer(nil)

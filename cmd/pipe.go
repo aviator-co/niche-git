@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 
 	nichegit "github.com/aviator-co/niche-git"
@@ -35,6 +36,7 @@ var pipeCmd = &cobra.Command{
 		}
 		dec := json.NewDecoder(in)
 
+		client := &http.Client{Transport: &authnRoundtripper{}}
 		switch pipeArg.command {
 		case "get-files":
 			input := GetFilesArgs{}
@@ -42,6 +44,13 @@ var pipeCmd = &cobra.Command{
 				return err
 			}
 			output := GetFiles(input)
+			return writeJSON(pipeArg.outputFile, output)
+		case "get-merge-base":
+			input := nichegit.GetMergeBaseArgs{}
+			if err := dec.Decode(&input); err != nil {
+				return err
+			}
+			output := nichegit.GetMergeBase(client, input)
 			return writeJSON(pipeArg.outputFile, output)
 		case "get-modified-files-regexp-matches":
 			input := GetModifiedFilesRegexpMatchesArgs{}

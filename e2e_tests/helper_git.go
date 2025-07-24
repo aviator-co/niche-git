@@ -21,7 +21,7 @@ import (
 func NewTempRepo(t *testing.T) *GitTestRepo {
 	t.Helper()
 	dir := t.TempDir()
-	init := exec.Command("git", "init", "--initial-branch=main")
+	init := exec.CommandContext(t.Context(), "git", "init", "--initial-branch=main")
 	init.Dir = dir
 	err := init.Run()
 	require.NoError(t, err, "failed to initialize git repository")
@@ -46,7 +46,7 @@ type GitTestRepo struct {
 
 func (r *GitTestRepo) Git(t *testing.T, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", args...)
+	cmd := exec.CommandContext(t.Context(), "git", args...)
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	cmd.Stdout = stdout

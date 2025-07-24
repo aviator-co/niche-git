@@ -5,6 +5,7 @@ package e2e_tests
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -18,7 +19,7 @@ import (
 var nicheGitCmdPath string
 
 func init() {
-	cmd := exec.Command("go", "build", "../cmd/niche-git")
+	cmd := exec.CommandContext(context.Background(), "go", "build", "../cmd/niche-git")
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 
@@ -40,7 +41,7 @@ type NicheGitOutput struct {
 
 func cmdInternal(t *testing.T, exe string, args ...string) NicheGitOutput {
 	t.Helper()
-	cmd := exec.Command(exe, args...)
+	cmd := exec.CommandContext(t.Context(), exe, args...)
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	cmd.Stdout = stdout
