@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	nichegit "github.com/aviator-co/niche-git"
-	"github.com/aviator-co/niche-git/cmd"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,13 +38,14 @@ func TestModifiedFilesRegexpMatches(t *testing.T) {
 	`)
 	targetHash := repo.CommitFile(t, "src/migrations/add_table_20240822.sql", "")
 
-	output := cmd.GetModifiedFilesRegexpMatches(
+	output := nichegit.GetModifiedFilesRegexpMatches(
 		t.Context(),
-		cmd.GetModifiedFilesRegexpMatchesArgs{
+		nil,
+		nichegit.GetModifiedFilesRegexpMatchesArgs{
 			RepoURL:     "file://" + repo.RepoDir,
 			CommitHash1: baseHash.String(),
 			CommitHash2: targetHash.String(),
-			Patterns: map[string]cmd.GetModifiedFilesPattern{
+			Patterns: map[string]nichegit.GetModifiedFilesPattern{
 				"ignore_test": {
 					FilePathPatterns:   []string{"**/*.java"},
 					FileContentPattern: `@Ignore`,

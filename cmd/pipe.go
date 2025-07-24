@@ -51,12 +51,19 @@ var pipeCmd = &cobra.Command{
 		client := &http.Client{Transport: &authnRoundtripper{}}
 
 		switch pipeArg.command {
-		case "get-files":
-			args := GetFilesArgs{}
+		case "get-commits":
+			args := nichegit.GetCommitsArgs{}
 			if err := dec.Decode(&args); err != nil {
 				return err
 			}
-			output := GetFiles(ctx, args)
+			output := nichegit.GetCommits(ctx, client, args)
+			return writeJSON(pipeArg.outputFile, output)
+		case "get-files":
+			args := nichegit.GetFilesArgs{}
+			if err := dec.Decode(&args); err != nil {
+				return err
+			}
+			output := nichegit.GetFiles(ctx, client, args)
 			return writeJSON(pipeArg.outputFile, output)
 		case "get-merge-base":
 			args := nichegit.GetMergeBaseArgs{}
@@ -65,12 +72,33 @@ var pipeCmd = &cobra.Command{
 			}
 			output := nichegit.GetMergeBase(ctx, client, args)
 			return writeJSON(pipeArg.outputFile, output)
-		case "get-modified-files-regexp-matches":
-			args := GetModifiedFilesRegexpMatchesArgs{}
+		case "get-modified-files":
+			args := nichegit.GetModifiedFilesArgs{}
 			if err := dec.Decode(&args); err != nil {
 				return err
 			}
-			output := GetModifiedFilesRegexpMatches(ctx, args)
+			output := nichegit.GetModifiedFiles(ctx, client, args)
+			return writeJSON(pipeArg.outputFile, output)
+		case "get-modified-files-regexp-matches":
+			args := nichegit.GetModifiedFilesRegexpMatchesArgs{}
+			if err := dec.Decode(&args); err != nil {
+				return err
+			}
+			output := nichegit.GetModifiedFilesRegexpMatches(ctx, client, args)
+			return writeJSON(pipeArg.outputFile, output)
+		case "ls-refs":
+			args := nichegit.LsRefsArgs{}
+			if err := dec.Decode(&args); err != nil {
+				return err
+			}
+			output := nichegit.LsRefs(ctx, client, args)
+			return writeJSON(pipeArg.outputFile, output)
+		case "squash-cherry-pick":
+			args := nichegit.SquashCherryPickArgs{}
+			if err := dec.Decode(&args); err != nil {
+				return err
+			}
+			output := nichegit.SquashCherryPick(ctx, client, args)
 			return writeJSON(pipeArg.outputFile, output)
 		case "squash-push":
 			args := nichegit.SquashPushArgs{}

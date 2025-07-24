@@ -47,7 +47,61 @@ type ModifiedFile struct {
 	Matches map[string]*ModifiedFilePatternMatch `json:"matches,omitempty"`
 }
 
-func FetchModifiedFilesWithRegexpMatch(
+type GetModifiedFilesPattern struct {
+	FilePathPatterns   []string `json:"filePathPatterns"`
+	FileContentPattern string   `json:"fileContentPattern,omitempty"`
+}
+
+type GetModifiedFilesRegexpMatchesArgs struct {
+	RepoURL     string                             `json:"repoURL"`
+	CommitHash1 string                             `json:"commitHash1"`
+	CommitHash2 string                             `json:"commitHash2"`
+	Patterns    map[string]GetModifiedFilesPattern `json:"patterns"`
+}
+
+type GetModifiedFilesRegexpMatchesOutput struct {
+	Files              []*ModifiedFile       `json:"files"`
+	FetchDebugInfo     *debug.FetchDebugInfo `json:"fetchDebugInfo"`
+	BlobFetchDebugInfo *debug.FetchDebugInfo `json:"blobFetchDebugInfo"`
+	Error              string                `json:"error,omitempty"`
+}
+
+func GetModifiedFilesRegexpMatches(ctx context.Context, client *http.Client, args GetModifiedFilesRegexpMatchesArgs) GetModifiedFilesRegexpMatchesOutput {
+	patterns := make(map[string]ModifiedFilePattern)
+	for key, value := range args.Patterns {
+		v := ModifiedFilePattern{
+			FilePathPattern: value.FilePathPatterns,
+		}
+		if value.FileContentPattern != "" {
+			pattern, err := regexp.Compile(value.FileContentPattern)
+			if err != nil {
+				return GetModifiedFilesRegexpMatchesOutput{Error: err.Error()}
+			}
+			v.FileContentPattern = pattern
+		}
+		patterns[key] = v
+	}
+
+	files, fetchDebugInfo, blobFetchDebugInfo, err := fetchModifiedFilesWithRegexpMatch(
+		ctx,
+		args.RepoURL,
+		client,
+		plumbing.NewHash(args.CommitHash1),
+		plumbing.NewHash(args.CommitHash2),
+		patterns,
+	)
+	output := GetModifiedFilesRegexpMatchesOutput{
+		Files:              files,
+		FetchDebugInfo:     &fetchDebugInfo,
+		BlobFetchDebugInfo: blobFetchDebugInfo,
+	}
+	if err != nil {
+		output.Error = err.Error()
+	}
+	return output
+}
+
+func fetchModifiedFilesWithRegexpMatch(
 	ctx context.Context,
 	repoURL string,
 	client *http.Client,

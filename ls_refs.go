@@ -29,7 +29,34 @@ type RefInfo struct {
 	SymbolicTarget string `json:"symbolicTarget,omitempty"`
 }
 
-func LsRefs(ctx context.Context, repoURL string, client *http.Client, refPrefixes []string) ([]*RefInfo, debug.LsRefsDebugInfo, error) {
+type LsRefsArgs struct {
+	RepoURL     string   `json:"repoURL"`
+	RefPrefixes []string `json:"refPrefixes"`
+}
+
+type LsRefsOutput struct {
+	Refs      []*RefInfo            `json:"refs"`
+	DebugInfo debug.LsRefsDebugInfo `json:"debugInfo"`
+	Error     string                `json:"error,omitempty"`
+}
+
+func LsRefs(ctx context.Context, client *http.Client, args LsRefsArgs) LsRefsOutput {
+	refs, debugInfo, fetchErr := lsRefs(ctx, args.RepoURL, client, args.RefPrefixes)
+	if refs == nil {
+		// Always create an empty slice for JSON output.
+		refs = []*RefInfo{}
+	}
+	output := LsRefsOutput{
+		Refs:      refs,
+		DebugInfo: debugInfo,
+	}
+	if fetchErr != nil {
+		output.Error = fetchErr.Error()
+	}
+	return output
+}
+
+func lsRefs(ctx context.Context, repoURL string, client *http.Client, refPrefixes []string) ([]*RefInfo, debug.LsRefsDebugInfo, error) {
 	rawRefData, headers, err := fetch.LsRefs(ctx, repoURL, client, refPrefixes)
 	debugInfo := debug.LsRefsDebugInfo{ResponseHeaders: headers}
 	if err != nil {

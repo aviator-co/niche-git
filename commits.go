@@ -24,6 +24,18 @@ type CommitSignature struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+type GetCommitsArgs struct {
+	RepoURL          string   `json:"repoURL"`
+	WantCommitHashes []string `json:"wantCommitHashes"`
+	HaveCommitHashes []string `json:"haveCommitHashes"`
+}
+
+type GetCommitsOutput struct {
+	Commits   []*CommitInfo        `json:"commits"`
+	DebugInfo debug.FetchDebugInfo `json:"debugInfo"`
+	Error     string               `json:"error,omitempty"`
+}
+
 type CommitInfo struct {
 	// Hash is the commit hash.
 	Hash string `json:"hash"`
@@ -42,6 +54,30 @@ type CommitInfo struct {
 
 	// ParentHashes are the hashes of the parent commits.
 	ParentHashes []string `json:"parentHashes"`
+}
+
+func GetCommits(ctx context.Context, client *http.Client, args GetCommitsArgs) GetCommitsOutput {
+	var wantCommitHashes []plumbing.Hash
+	for _, s := range args.WantCommitHashes {
+		wantCommitHashes = append(wantCommitHashes, plumbing.NewHash(s))
+	}
+	var haveCommitHashes []plumbing.Hash
+	for _, s := range args.HaveCommitHashes {
+		haveCommitHashes = append(haveCommitHashes, plumbing.NewHash(s))
+	}
+	commits, debugInfo, fetchErr := FetchCommits(ctx, args.RepoURL, client, wantCommitHashes, haveCommitHashes)
+	if commits == nil {
+		// Always create an empty slice for JSON output.
+		commits = []*CommitInfo{}
+	}
+	output := GetCommitsOutput{
+		Commits:   commits,
+		DebugInfo: debugInfo,
+	}
+	if fetchErr != nil {
+		output.Error = fetchErr.Error()
+	}
+	return output
 }
 
 func FetchCommits(ctx context.Context, repoURL string, client *http.Client, wantCommitHashes, haveCommitHashes []plumbing.Hash) ([]*CommitInfo, debug.FetchDebugInfo, error) {

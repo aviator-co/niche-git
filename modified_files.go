@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 
 	"github.com/aviator-co/niche-git/debug"
 	"github.com/aviator-co/niche-git/internal/diff"
@@ -18,8 +19,42 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 )
 
-// FetchModifiedFiles returns the list of files that were modified between two commits.
-func FetchModifiedFiles(ctx context.Context, repoURL string, client *http.Client, commitHash1, commitHash2 plumbing.Hash) ([]string, debug.FetchDebugInfo, error) {
+type GetModifiedFilesArgs struct {
+	RepoURL     string `json:"repoURL"`
+	CommitHash1 string `json:"commitHash1"`
+	CommitHash2 string `json:"commitHash2"`
+}
+
+type GetModifiedFilesOutput struct {
+	Files     []string             `json:"files"`
+	DebugInfo debug.FetchDebugInfo `json:"debugInfo"`
+	Error     string               `json:"error,omitempty"`
+}
+
+func GetModifiedFiles(ctx context.Context, client *http.Client, args GetModifiedFilesArgs) GetModifiedFilesOutput {
+	files, debugInfo, fetchErr := fetchModifiedFiles(
+		ctx,
+		args.RepoURL,
+		client,
+		plumbing.NewHash(args.CommitHash1),
+		plumbing.NewHash(args.CommitHash2),
+	)
+	if files == nil {
+		// Always create an empty slice for JSON output.
+		files = []string{}
+	}
+	output := GetModifiedFilesOutput{
+		Files:     files,
+		DebugInfo: debugInfo,
+	}
+	sort.Strings(output.Files)
+	if fetchErr != nil {
+		output.Error = fetchErr.Error()
+	}
+	return output
+}
+
+func fetchModifiedFiles(ctx context.Context, repoURL string, client *http.Client, commitHash1, commitHash2 plumbing.Hash) ([]string, debug.FetchDebugInfo, error) {
 	packfilebs, debugInfo, err := fetch.FetchBlobNonePackfile(ctx, repoURL, client, []plumbing.Hash{commitHash1, commitHash2}, 1)
 	if err != nil {
 		return nil, debugInfo, err
