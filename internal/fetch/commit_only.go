@@ -5,6 +5,7 @@ package fetch
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 
 	"github.com/aviator-co/niche-git/debug"
@@ -13,11 +14,11 @@ import (
 )
 
 // FetchCommitOnlyPackfile fetches a packfile from a remote repository with only commit objects.
-func FetchCommitOnlyPackfile(repoURL string, client *http.Client, wantOids, haveOids []plumbing.Hash) ([]byte, debug.FetchDebugInfo, error) {
-	return fetchPackfile(repoURL, client, createCommitOnlyFetchRequest(wantOids, haveOids))
+func FetchCommitOnlyPackfile(ctx context.Context, repoURL string, client *http.Client, wantOids, haveOids []plumbing.Hash) ([]byte, debug.FetchDebugInfo, error) {
+	return fetchPackfile(ctx, repoURL, client, createCommitOnlyFetchRequest(wantOids, haveOids))
 }
 
-func createCommitOnlyFetchRequest(wantOids, haveOids []plumbing.Hash) *bytes.Buffer {
+func createCommitOnlyFetchRequest(wantOids, haveOids []plumbing.Hash) []byte {
 	chunks := []*gitprotocolio.ProtocolV2RequestChunk{
 		{
 			Command: "fetch",
@@ -58,5 +59,5 @@ func createCommitOnlyFetchRequest(wantOids, haveOids []plumbing.Hash) *bytes.Buf
 		// Not possible to fail.
 		bs.Write(chunk.EncodeToPktLine())
 	}
-	return bs
+	return bs.Bytes()
 }

@@ -16,11 +16,12 @@ import (
 	"strings"
 
 	"github.com/aviator-co/niche-git/debug"
+	"github.com/aviator-co/niche-git/gitprotocontext"
 	"github.com/google/gitprotocolio"
 )
 
-func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]byte, debug.FetchDebugInfo, error) {
-	rd, headers, err := callProtocolV2(repoURL, client, body)
+func fetchPackfile(ctx context.Context, repoURL string, client *http.Client, body []byte) ([]byte, debug.FetchDebugInfo, error) {
+	rd, headers, err := callProtocolV2(ctx, repoURL, client, body)
 	debugInfo := debug.FetchDebugInfo{ResponseHeaders: headers}
 	if err != nil {
 		return nil, debugInfo, err
@@ -67,22 +68,47 @@ func fetchPackfile(repoURL string, client *http.Client, body *bytes.Buffer) ([]b
 	return packfile.Bytes(), debugInfo, nil
 }
 
-func callProtocolV2(repoURL string, client *http.Client, body *bytes.Buffer) (io.ReadCloser, http.Header, error) {
-	if strings.HasPrefix(repoURL, "http") {
-		return callProtocolV2HTTP(repoURL, client, body)
-	} else if strings.HasPrefix(repoURL, "file") {
-		rd, err := callProtocolV2File(repoURL, body)
-		return rd, http.Header{}, err
+func callProtocolV2(ctx context.Context, repoURL string, client *http.Client, body []byte) (io.ReadCloser, http.Header, error) {
+	retryCount := gitprotocontext.GitFetchRetryCount(ctx)
+	var errs []error
+	for {
+		childCtx, cancel := ctx, func() {}
+		if timeout := gitprotocontext.GitFetchTimeout(ctx); timeout > 0 {
+			childCtx, cancel = context.WithTimeout(ctx, timeout)
+		}
+		switch {
+		case strings.HasPrefix(repoURL, "http"):
+			rd, headers, err := callProtocolV2HTTP(childCtx, repoURL, client, body)
+			cancel()
+			if err == nil {
+				return rd, headers, nil
+			}
+			errs = append(errs, err)
+		case strings.HasPrefix(repoURL, "file"):
+			rd, err := callProtocolV2File(childCtx, repoURL, body)
+			cancel()
+			if err == nil {
+				return rd, http.Header{}, nil
+			}
+			errs = append(errs, err)
+		default:
+			cancel()
+			return nil, nil, errors.New("unsupported protocol")
+		}
+
+		retryCount--
+		if retryCount <= 0 {
+			return nil, nil, errors.Join(errs...)
+		}
 	}
-	return nil, nil, errors.New("unsupported protocol")
 }
 
-func callProtocolV2HTTP(repoURL string, client *http.Client, body *bytes.Buffer) (io.ReadCloser, http.Header, error) {
+func callProtocolV2HTTP(ctx context.Context, repoURL string, client *http.Client, body []byte) (io.ReadCloser, http.Header, error) {
 	upURL, err := buildUploadPackURL(repoURL)
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequestWithContext(context.TODO(), http.MethodPost, upURL, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, upURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -102,10 +128,10 @@ func callProtocolV2HTTP(repoURL string, client *http.Client, body *bytes.Buffer)
 	return resp.Body, resp.Header, nil
 }
 
-func callProtocolV2File(repoURL string, body *bytes.Buffer) (io.ReadCloser, error) {
+func callProtocolV2File(ctx context.Context, repoURL string, body []byte) (io.ReadCloser, error) {
 	fpath := strings.TrimPrefix(repoURL, "file://")
-	cmd := exec.Command("git", "-c", "uploadpack.allowFilter=1", "upload-pack", "--stateless-rpc", fpath)
-	cmd.Stdin = body
+	cmd := exec.CommandContext(ctx, "git", "-c", "uploadpack.allowFilter=1", "upload-pack", "--stateless-rpc", fpath)
+	cmd.Stdin = bytes.NewReader(body)
 	cmd.Stderr = os.Stderr
 	stdout := bytes.NewBuffer(nil)
 	cmd.Stdout = stdout

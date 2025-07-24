@@ -5,6 +5,7 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -46,13 +47,68 @@ type ModifiedFile struct {
 	Matches map[string]*ModifiedFilePatternMatch `json:"matches,omitempty"`
 }
 
-func FetchModifiedFilesWithRegexpMatch(
+type GetModifiedFilesPattern struct {
+	FilePathPatterns   []string `json:"filePathPatterns"`
+	FileContentPattern string   `json:"fileContentPattern,omitempty"`
+}
+
+type GetModifiedFilesRegexpMatchesArgs struct {
+	RepoURL     string                             `json:"repoURL"`
+	CommitHash1 string                             `json:"commitHash1"`
+	CommitHash2 string                             `json:"commitHash2"`
+	Patterns    map[string]GetModifiedFilesPattern `json:"patterns"`
+}
+
+type GetModifiedFilesRegexpMatchesOutput struct {
+	Files              []*ModifiedFile       `json:"files"`
+	FetchDebugInfo     *debug.FetchDebugInfo `json:"fetchDebugInfo"`
+	BlobFetchDebugInfo *debug.FetchDebugInfo `json:"blobFetchDebugInfo"`
+	Error              string                `json:"error,omitempty"`
+}
+
+func GetModifiedFilesRegexpMatches(ctx context.Context, client *http.Client, args GetModifiedFilesRegexpMatchesArgs) GetModifiedFilesRegexpMatchesOutput {
+	patterns := make(map[string]ModifiedFilePattern)
+	for key, value := range args.Patterns {
+		v := ModifiedFilePattern{
+			FilePathPattern: value.FilePathPatterns,
+		}
+		if value.FileContentPattern != "" {
+			pattern, err := regexp.Compile(value.FileContentPattern)
+			if err != nil {
+				return GetModifiedFilesRegexpMatchesOutput{Error: err.Error()}
+			}
+			v.FileContentPattern = pattern
+		}
+		patterns[key] = v
+	}
+
+	files, fetchDebugInfo, blobFetchDebugInfo, err := fetchModifiedFilesWithRegexpMatch(
+		ctx,
+		args.RepoURL,
+		client,
+		plumbing.NewHash(args.CommitHash1),
+		plumbing.NewHash(args.CommitHash2),
+		patterns,
+	)
+	output := GetModifiedFilesRegexpMatchesOutput{
+		Files:              files,
+		FetchDebugInfo:     &fetchDebugInfo,
+		BlobFetchDebugInfo: blobFetchDebugInfo,
+	}
+	if err != nil {
+		output.Error = err.Error()
+	}
+	return output
+}
+
+func fetchModifiedFilesWithRegexpMatch(
+	ctx context.Context,
 	repoURL string,
 	client *http.Client,
 	commitHash1, commitHash2 plumbing.Hash,
 	patterns map[string]ModifiedFilePattern,
 ) ([]*ModifiedFile, debug.FetchDebugInfo, *debug.FetchDebugInfo, error) {
-	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHash1, commitHash2}, 1)
+	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(ctx, repoURL, client, []plumbing.Hash{commitHash1, commitHash2}, 1)
 	if err != nil {
 		return nil, fetchDebugInfo, nil, err
 	}
@@ -80,7 +136,7 @@ func FetchModifiedFilesWithRegexpMatch(
 		return nil, fetchDebugInfo, nil, fmt.Errorf("failed to take file diffs: %v", err)
 	}
 
-	packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(repoURL, client, getBlobHashes(modified))
+	packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(ctx, repoURL, client, getBlobHashes(modified))
 	blobFetchDebugInfo := &fetchBlobDebugInfo
 	if err != nil {
 		return nil, fetchDebugInfo, blobFetchDebugInfo, err

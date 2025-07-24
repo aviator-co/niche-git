@@ -5,6 +5,7 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"maps"
 	"net/http"
@@ -71,13 +72,13 @@ type SquashPushOutput struct {
 	Error           string                  `json:"error,omitempty"`
 }
 
-func SquashPush(client *http.Client, args SquashPushArgs) SquashPushOutput {
+func SquashPush(ctx context.Context, client *http.Client, args SquashPushArgs) SquashPushOutput {
 	s := &squashPush{
 		client:  client,
 		args:    args,
 		storage: memory.NewStorage(),
 	}
-	err := s.run()
+	err := s.run(ctx)
 	output := SquashPushOutput{
 		CommandResults:  s.commandResults,
 		FetchDebugInfos: s.fetchDebugInfos,
@@ -99,33 +100,33 @@ type squashPush struct {
 	commandResults  []SquashCommandResult
 }
 
-func (s *squashPush) run() error {
-	if err := s.fetchCommits(); err != nil {
+func (s *squashPush) run(ctx context.Context) error {
+	if err := s.fetchCommits(ctx); err != nil {
 		return err
 	}
 	currentCommitHash := plumbing.NewHash(s.args.BaseCommitHash)
 	for _, command := range s.args.SquashCommands {
-		commandResult, err := s.squashCommit(currentCommitHash, command)
+		commandResult, err := s.squashCommit(ctx, currentCommitHash, command)
 		s.commandResults = append(s.commandResults, commandResult)
 		if err != nil {
 			return err
 		}
 		currentCommitHash = plumbing.NewHash(commandResult.CommitHash)
 	}
-	if err := s.push(currentCommitHash); err != nil {
+	if err := s.push(ctx, currentCommitHash); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *squashPush) fetchCommits() error {
+func (s *squashPush) fetchCommits(ctx context.Context) error {
 	hashes := make(map[plumbing.Hash]bool)
 	hashes[plumbing.NewHash(s.args.BaseCommitHash)] = true
 	for _, command := range s.args.SquashCommands {
 		hashes[plumbing.NewHash(command.CommitHashStart)] = true
 		hashes[plumbing.NewHash(command.CommitHashEnd)] = true
 	}
-	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(s.args.RepoURL, s.client, slices.AppendSeq(make([]plumbing.Hash, 0, len(hashes)), maps.Keys(hashes)), 1)
+	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(ctx, s.args.RepoURL, s.client, slices.AppendSeq(make([]plumbing.Hash, 0, len(hashes)), maps.Keys(hashes)), 1)
 	s.fetchDebugInfos = append(s.fetchDebugInfos, &fetchDebugInfo)
 	if err != nil {
 		return err
@@ -141,7 +142,7 @@ func (s *squashPush) fetchCommits() error {
 	return nil
 }
 
-func (s *squashPush) squashCommit(currentCommitHash plumbing.Hash, command SquashCommand) (SquashCommandResult, error) {
+func (s *squashPush) squashCommit(ctx context.Context, currentCommitHash plumbing.Hash, command SquashCommand) (SquashCommandResult, error) {
 	treeDestination, err := s.getTreeFromCommit(currentCommitHash)
 	if err != nil {
 		return SquashCommandResult{}, err
@@ -170,7 +171,7 @@ func (s *squashPush) squashCommit(currentCommitHash plumbing.Hash, command Squas
 					missingBlobHashes = append(missingBlobHashes, hash)
 				}
 			}
-			packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(s.args.RepoURL, s.client, missingBlobHashes)
+			packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(ctx, s.args.RepoURL, s.client, missingBlobHashes)
 			s.fetchDebugInfos = append(s.fetchDebugInfos, &fetchBlobDebugInfo)
 			if err != nil {
 				return SquashCommandResult{}, err
@@ -229,7 +230,7 @@ func (s *squashPush) squashCommit(currentCommitHash plumbing.Hash, command Squas
 	return result, nil
 }
 
-func (s *squashPush) push(commitHash plumbing.Hash) error {
+func (s *squashPush) push(ctx context.Context, commitHash plumbing.Hash) error {
 	var buf bytes.Buffer
 	packEncoder := packfile.NewEncoder(&buf, s.storage, false)
 	if _, err := packEncoder.Encode(s.newObjects, 0); err != nil {
@@ -242,7 +243,7 @@ func (s *squashPush) push(commitHash plumbing.Hash) error {
 		currentRefHash = &hash
 	}
 
-	pushDebugInfo, err := push.Push(s.args.RepoURL, s.client, &buf, []push.RefUpdate{
+	pushDebugInfo, err := push.Push(ctx, s.args.RepoURL, s.client, &buf, []push.RefUpdate{
 		{
 			Name:    plumbing.ReferenceName(s.args.Ref),
 			OldHash: currentRefHash,

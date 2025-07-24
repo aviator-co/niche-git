@@ -5,14 +5,15 @@ package fetch
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 
 	"github.com/google/gitprotocolio"
 )
 
 // LsRefs fetches a refs from a remote repository.
-func LsRefs(repoURL string, client *http.Client, refPrefixes []string) ([]string, http.Header, error) {
-	rd, headers, err := callProtocolV2(repoURL, client, createLsRefsRequest(refPrefixes))
+func LsRefs(ctx context.Context, repoURL string, client *http.Client, refPrefixes []string) ([]string, http.Header, error) {
+	rd, headers, err := callProtocolV2(ctx, repoURL, client, createLsRefsRequest(refPrefixes))
 	if err != nil {
 		return nil, headers, err
 	}
@@ -41,7 +42,7 @@ func LsRefs(repoURL string, client *http.Client, refPrefixes []string) ([]string
 	return refData, headers, nil
 }
 
-func createLsRefsRequest(refPrefixes []string) *bytes.Buffer {
+func createLsRefsRequest(refPrefixes []string) []byte {
 	chunks := []*gitprotocolio.ProtocolV2RequestChunk{
 		{
 			Command: "ls-refs",
@@ -74,5 +75,5 @@ func createLsRefsRequest(refPrefixes []string) *bytes.Buffer {
 		// Not possible to fail.
 		bs.Write(chunk.EncodeToPktLine())
 	}
-	return bs
+	return bs.Bytes()
 }

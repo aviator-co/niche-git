@@ -5,6 +5,7 @@ package fetch
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 
@@ -14,11 +15,11 @@ import (
 )
 
 // FetchBlobNonePackfile fetches a packfile from a remote repository without blobs.
-func FetchBlobNonePackfile(repoURL string, client *http.Client, oids []plumbing.Hash, depth int) ([]byte, debug.FetchDebugInfo, error) {
-	return fetchPackfile(repoURL, client, createBlobNoneFetchRequest(oids, depth))
+func FetchBlobNonePackfile(ctx context.Context, repoURL string, client *http.Client, oids []plumbing.Hash, depth int) ([]byte, debug.FetchDebugInfo, error) {
+	return fetchPackfile(ctx, repoURL, client, createBlobNoneFetchRequest(oids, depth))
 }
 
-func createBlobNoneFetchRequest(oids []plumbing.Hash, depth int) *bytes.Buffer {
+func createBlobNoneFetchRequest(oids []plumbing.Hash, depth int) []byte {
 	chunks := []*gitprotocolio.ProtocolV2RequestChunk{
 		{
 			Command: "fetch",
@@ -57,5 +58,5 @@ func createBlobNoneFetchRequest(oids []plumbing.Hash, depth int) *bytes.Buffer {
 		// Not possible to fail.
 		bs.Write(chunk.EncodeToPktLine())
 	}
-	return bs
+	return bs.Bytes()
 }

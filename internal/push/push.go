@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/aviator-co/niche-git/debug"
+	"github.com/aviator-co/niche-git/gitprotocontext"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/protocol/packp"
 	gogittransport "github.com/go-git/go-git/v5/plumbing/transport"
@@ -18,10 +19,13 @@ import (
 	gogithttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
-func Push(repoURL string, client *http.Client, packfile *bytes.Buffer, refUpdates []RefUpdate) (debug.PushDebugInfo, error) {
+func Push(ctx context.Context, repoURL string, client *http.Client, packfile *bytes.Buffer, refUpdates []RefUpdate) (debug.PushDebugInfo, error) {
 	debugInfo := debug.PushDebugInfo{}
 	if packfile != nil {
 		debugInfo.PackfileSize = packfile.Len()
+	}
+	if client == nil {
+		client = http.DefaultClient
 	}
 
 	crt := &capturingRoundTripper{inner: client.Transport}
@@ -79,7 +83,13 @@ func Push(repoURL string, client *http.Client, packfile *bytes.Buffer, refUpdate
 		}
 		req.Commands = append(req.Commands, cmd)
 	}
-	status, err := sess.ReceivePack(context.Background(), req)
+	ctx, cancel := ctx, func() {}
+	if timeout := gitprotocontext.GitPushTimeout(ctx); timeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+	}
+	defer cancel()
+
+	status, err := sess.ReceivePack(ctx, req)
 	debugInfo.PushResponseHeaders = crt.lastResponseHTTPHeader
 	if status != nil {
 		debugInfo.UnpackStatus = status.UnpackStatus

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	nichegit "github.com/aviator-co/niche-git"
-	"github.com/aviator-co/niche-git/cmd"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,7 +60,9 @@ func TestBackport_Resolve_Conflict(t *testing.T) {
 	    return 1
 	`)
 
-	output := cmd.Backport(
+	output := nichegit.Backport(
+		t.Context(),
+		nil,
 		nichegit.BackportArgs{
 			RepoURL:        "file://" + repo.RepoDir,
 			BaseCommitHash: baseHash2.String(),

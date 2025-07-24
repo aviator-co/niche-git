@@ -5,6 +5,7 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -21,6 +22,18 @@ type CommitSignature struct {
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
 	Timestamp time.Time `json:"timestamp"`
+}
+
+type GetCommitsArgs struct {
+	RepoURL          string   `json:"repoURL"`
+	WantCommitHashes []string `json:"wantCommitHashes"`
+	HaveCommitHashes []string `json:"haveCommitHashes"`
+}
+
+type GetCommitsOutput struct {
+	Commits   []*CommitInfo        `json:"commits"`
+	DebugInfo debug.FetchDebugInfo `json:"debugInfo"`
+	Error     string               `json:"error,omitempty"`
 }
 
 type CommitInfo struct {
@@ -43,8 +56,32 @@ type CommitInfo struct {
 	ParentHashes []string `json:"parentHashes"`
 }
 
-func FetchCommits(repoURL string, client *http.Client, wantCommitHashes, haveCommitHashes []plumbing.Hash) ([]*CommitInfo, debug.FetchDebugInfo, error) {
-	packfilebs, debugInfo, err := fetch.FetchCommitOnlyPackfile(repoURL, client, wantCommitHashes, haveCommitHashes)
+func GetCommits(ctx context.Context, client *http.Client, args GetCommitsArgs) GetCommitsOutput {
+	var wantCommitHashes []plumbing.Hash
+	for _, s := range args.WantCommitHashes {
+		wantCommitHashes = append(wantCommitHashes, plumbing.NewHash(s))
+	}
+	var haveCommitHashes []plumbing.Hash
+	for _, s := range args.HaveCommitHashes {
+		haveCommitHashes = append(haveCommitHashes, plumbing.NewHash(s))
+	}
+	commits, debugInfo, fetchErr := FetchCommits(ctx, args.RepoURL, client, wantCommitHashes, haveCommitHashes)
+	if commits == nil {
+		// Always create an empty slice for JSON output.
+		commits = []*CommitInfo{}
+	}
+	output := GetCommitsOutput{
+		Commits:   commits,
+		DebugInfo: debugInfo,
+	}
+	if fetchErr != nil {
+		output.Error = fetchErr.Error()
+	}
+	return output
+}
+
+func FetchCommits(ctx context.Context, repoURL string, client *http.Client, wantCommitHashes, haveCommitHashes []plumbing.Hash) ([]*CommitInfo, debug.FetchDebugInfo, error) {
+	packfilebs, debugInfo, err := fetch.FetchCommitOnlyPackfile(ctx, repoURL, client, wantCommitHashes, haveCommitHashes)
 	if err != nil {
 		return nil, debugInfo, err
 	}

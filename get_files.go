@@ -5,6 +5,7 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,8 +19,43 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 )
 
-func FetchFiles(repoURL string, client *http.Client, commitHash plumbing.Hash, filePaths []string) (map[string]string, debug.FetchDebugInfo, *debug.FetchDebugInfo, error) {
-	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHash}, 1)
+type GetFilesArgs struct {
+	RepoURL    string   `json:"repoURL"`
+	CommitHash string   `json:"commitHash"`
+	FilePaths  []string `json:"filePaths"`
+}
+
+type GetFilesOutput struct {
+	Files              map[string]string     `json:"files"`
+	FetchDebugInfo     *debug.FetchDebugInfo `json:"fetchDebugInfo"`
+	BlobFetchDebugInfo *debug.FetchDebugInfo `json:"blobFetchDebugInfo"`
+	Error              string                `json:"error,omitempty"`
+}
+
+func GetFiles(ctx context.Context, client *http.Client, args GetFilesArgs) GetFilesOutput {
+	files, fetchDebugInfo, blobFetchDebugInfo, err := fetchFiles(
+		ctx,
+		args.RepoURL,
+		client,
+		plumbing.NewHash(args.CommitHash),
+		args.FilePaths,
+	)
+	if files == nil {
+		files = make(map[string]string)
+	}
+	output := GetFilesOutput{
+		Files:              files,
+		FetchDebugInfo:     &fetchDebugInfo,
+		BlobFetchDebugInfo: blobFetchDebugInfo,
+	}
+	if err != nil {
+		output.Error = err.Error()
+	}
+	return output
+}
+
+func fetchFiles(ctx context.Context, repoURL string, client *http.Client, commitHash plumbing.Hash, filePaths []string) (map[string]string, debug.FetchDebugInfo, *debug.FetchDebugInfo, error) {
+	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(ctx, repoURL, client, []plumbing.Hash{commitHash}, 1)
 	if err != nil {
 		return nil, fetchDebugInfo, nil, err
 	}
@@ -56,7 +92,7 @@ func FetchFiles(repoURL string, client *http.Client, commitHash plumbing.Hash, f
 		blobHashes = append(blobHashes, blobHash)
 	}
 
-	packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(repoURL, client, blobHashes)
+	packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(ctx, repoURL, client, blobHashes)
 	blobFetchDebugInfo := &fetchBlobDebugInfo
 	if err != nil {
 		return nil, fetchDebugInfo, blobFetchDebugInfo, err

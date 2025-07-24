@@ -5,9 +5,11 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/aviator-co/niche-git/debug"
 	"github.com/aviator-co/niche-git/internal/fetch"
@@ -29,9 +31,108 @@ type PushSquashCherryPickResult struct {
 	NonFileConflictFiles  []string
 }
 
-// PushSquashCherryPick creates a new commit with the changes between the two commits and push to
-// the specified ref.
-func PushSquashCherryPick(
+type SquashCherryPickArgs struct {
+	RepoURL         string `json:"repoURL"`
+	CherryPickFrom  string `json:"cherryPickFrom"`
+	CherryPickTo    string `json:"cherryPickTo"`
+	CherryPickBase  string `json:"cherryPickBase"`
+	CommitMessage   string `json:"commitMessage"`
+	Author          string `json:"author"`
+	AuthorEmail     string `json:"authorEmail"`
+	AuthorTime      string `json:"authorTime"`
+	Committer       string `json:"committer"`
+	CommitterEmail  string `json:"committerEmail"`
+	CommitterTime   string `json:"committerTime"`
+	Ref             string `json:"ref"`
+	ConflictRef     string `json:"conflictRef"`
+	CurrentRefHash  string `json:"currentRefHash"`
+	AbortOnConflict bool   `json:"abortOnConflict"`
+}
+
+type SquashCherryPickOutput struct {
+	CommitHash            string                `json:"commitHash"`
+	CherryPickedFiles     []string              `json:"cherryPickedFiles"`
+	ConflictOpenFiles     []string              `json:"conflictOpenFiles"`
+	ConflictResolvedFiles []string              `json:"conflictResolvedFiles"`
+	BinaryConflictFiles   []string              `json:"binaryConflictFiles"`
+	NonFileConflictFiles  []string              `json:"nonFileConflictFiles"`
+	FetchDebugInfo        debug.FetchDebugInfo  `json:"fetchDebugInfo"`
+	BlobFetchDebugInfo    *debug.FetchDebugInfo `json:"blobFetchDebugInfo"`
+	PushDebugInfo         *debug.PushDebugInfo  `json:"pushDebugInfo"`
+	Error                 string                `json:"error,omitempty"`
+}
+
+func SquashCherryPick(ctx context.Context, client *http.Client, args SquashCherryPickArgs) SquashCherryPickOutput {
+	var currentRefhash *plumbing.Hash
+	if args.CurrentRefHash != "" {
+		hash := plumbing.NewHash(args.CurrentRefHash)
+		currentRefhash = &hash
+	}
+	author, err := newSignature(args.Author, args.AuthorEmail, args.AuthorTime)
+	if err != nil {
+		return SquashCherryPickOutput{Error: fmt.Sprintf("invalid author signature: %v", err)}
+	}
+	committer, err := newSignature(args.Committer, args.CommitterEmail, args.CommitterTime)
+	if err != nil {
+		return SquashCherryPickOutput{Error: fmt.Sprintf("invalid committer signature: %v", err)}
+	}
+
+	var conflictRef *plumbing.ReferenceName
+	if args.ConflictRef != "" {
+		r := plumbing.ReferenceName(args.ConflictRef)
+		conflictRef = &r
+	}
+	result, fetchDebugInfo, blobFetchDebugInfo, pushDebugInfo, pushErr := pushSquashCherryPick(
+		ctx,
+		args.RepoURL,
+		client,
+		plumbing.NewHash(args.CherryPickFrom),
+		plumbing.NewHash(args.CherryPickTo),
+		plumbing.NewHash(args.CherryPickBase),
+		args.CommitMessage,
+		author,
+		committer,
+		plumbing.ReferenceName(args.Ref),
+		conflictRef,
+		currentRefhash,
+		args.AbortOnConflict,
+	)
+	output := SquashCherryPickOutput{
+		FetchDebugInfo:     fetchDebugInfo,
+		BlobFetchDebugInfo: blobFetchDebugInfo,
+		PushDebugInfo:      pushDebugInfo,
+	}
+	if result != nil {
+		output.CommitHash = result.CommitHash.String()
+		output.CherryPickedFiles = result.CherryPickedFiles
+		output.ConflictOpenFiles = result.ConflictOpenFiles
+		output.ConflictResolvedFiles = result.ConflictResolvedFiles
+		output.BinaryConflictFiles = result.BinaryConflictFiles
+		output.NonFileConflictFiles = result.NonFileConflictFiles
+	}
+	if output.CherryPickedFiles == nil {
+		output.CherryPickedFiles = []string{}
+	}
+	if output.ConflictOpenFiles == nil {
+		output.ConflictOpenFiles = []string{}
+	}
+	if output.ConflictResolvedFiles == nil {
+		output.ConflictResolvedFiles = []string{}
+	}
+	if output.BinaryConflictFiles == nil {
+		output.BinaryConflictFiles = []string{}
+	}
+	if output.NonFileConflictFiles == nil {
+		output.NonFileConflictFiles = []string{}
+	}
+	if pushErr != nil {
+		output.Error = pushErr.Error()
+	}
+	return output
+}
+
+func pushSquashCherryPick(
+	ctx context.Context,
 	repoURL string,
 	client *http.Client,
 	commitHashCherryPickFrom, commitHashCherryPickTo, commitHashCherryPickBase plumbing.Hash,
@@ -42,7 +143,7 @@ func PushSquashCherryPick(
 	currentRefhash *plumbing.Hash,
 	abortOnConflict bool,
 ) (*PushSquashCherryPickResult, debug.FetchDebugInfo, *debug.FetchDebugInfo, *debug.PushDebugInfo, error) {
-	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(repoURL, client, []plumbing.Hash{commitHashCherryPickFrom, commitHashCherryPickBase, commitHashCherryPickTo}, 1)
+	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(ctx, repoURL, client, []plumbing.Hash{commitHashCherryPickFrom, commitHashCherryPickBase, commitHashCherryPickTo}, 1)
 	if err != nil {
 		return nil, fetchDebugInfo, nil, nil, err
 	}
@@ -80,7 +181,7 @@ func PushSquashCherryPick(
 	if len(mergeResult.FilesConflict) != 0 {
 		// Need to fetch blobs and resolve the conflicts.
 		if len(collector.blobHashes) > 0 {
-			packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(repoURL, client, collector.blobHashes)
+			packfilebs, fetchBlobDebugInfo, err := fetch.FetchBlobPackfile(ctx, repoURL, client, collector.blobHashes)
 			blobFetchDebugInfo = &fetchBlobDebugInfo
 			if err != nil {
 				return nil, fetchDebugInfo, blobFetchDebugInfo, nil, err
@@ -144,7 +245,7 @@ func PushSquashCherryPick(
 		destRef = ref
 	}
 
-	pushDebugInfo, err := push.Push(repoURL, client, &buf, []push.RefUpdate{
+	pushDebugInfo, err := push.Push(ctx, repoURL, client, &buf, []push.RefUpdate{
 		{
 			Name:    destRef,
 			OldHash: currentRefhash,
@@ -178,4 +279,22 @@ func getTreeFromCommit(storage *memory.Storage, commitHash plumbing.Hash) (*obje
 		return nil, fmt.Errorf("cannot find the tree of %q in the fetched packfile: %v", commitHash.String(), err)
 	}
 	return tree, nil
+}
+
+func newSignature(name, email, timestamp string) (object.Signature, error) {
+	var t time.Time
+	if timestamp == "" {
+		t = time.Now()
+	} else {
+		var err error
+		t, err = time.Parse(time.RFC3339, timestamp)
+		if err != nil {
+			return object.Signature{}, err
+		}
+	}
+	return object.Signature{
+		Name:  name,
+		Email: email,
+		When:  t,
+	}, nil
 }

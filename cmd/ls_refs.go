@@ -7,55 +7,36 @@ import (
 	"net/http"
 
 	nichegit "github.com/aviator-co/niche-git"
-	"github.com/aviator-co/niche-git/debug"
 	"github.com/spf13/cobra"
 )
 
-var lsRefsArgs struct {
-	repoURL     string
-	refPrefixes []string
-
-	outputFile string
-}
+var (
+	lsRefsArgs       nichegit.LsRefsArgs
+	lsRefsOutputFile string
+)
 
 var lsRefsCmd = &cobra.Command{
 	Use: "ls-refs",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
 		client := &http.Client{Transport: &authnRoundtripper{}}
-		refs, debugInfo, fetchErr := nichegit.LsRefs(lsRefsArgs.repoURL, client, lsRefsArgs.refPrefixes)
-		if refs == nil {
-			// Always create an empty slice for JSON output.
-			refs = []*nichegit.RefInfo{}
-		}
-		output := lsRefsOutput{
-			Refs:      refs,
-			DebugInfo: debugInfo,
-		}
-		if fetchErr != nil {
-			output.Error = fetchErr.Error()
-		}
-		if err := writeJSON(lsRefsArgs.outputFile, output); err != nil {
+		output := nichegit.LsRefs(ctx, client, lsRefsArgs)
+		if err := writeJSON(lsRefsOutputFile, output); err != nil {
 			return err
 		}
-		return fetchErr
+		return nil
 	},
-}
-
-type lsRefsOutput struct {
-	Refs      []*nichegit.RefInfo   `json:"refs"`
-	DebugInfo debug.LsRefsDebugInfo `json:"debugInfo"`
-	Error     string                `json:"error,omitempty"`
 }
 
 func init() {
 	rootCmd.AddCommand(lsRefsCmd)
-	lsRefsCmd.Flags().StringVar(&lsRefsArgs.repoURL, "repo-url", "", "Git repository URL")
-	lsRefsCmd.Flags().StringSliceVar(&lsRefsArgs.refPrefixes, "ref-prefixes", nil, "Ref prefixes")
+	lsRefsCmd.Flags().StringVar(&lsRefsArgs.RepoURL, "repo-url", "", "Git repository URL")
+	lsRefsCmd.Flags().StringSliceVar(&lsRefsArgs.RefPrefixes, "ref-prefixes", nil, "Ref prefixes")
 	_ = lsRefsCmd.MarkFlagRequired("repo-url")
 
 	lsRefsCmd.Flags().StringVar(&authzHeader, "authz-header", "", "Optional authorization header")
 	lsRefsCmd.Flags().StringVar(&basicAuthzUser, "basic-authz-user", "", "Optional HTTP Basic Auth user")
 	lsRefsCmd.Flags().StringVar(&basicAuthzPassword, "basic-authz-password", "", "Optional HTTP Basic Auth password")
 
-	lsRefsCmd.Flags().StringVar(&lsRefsArgs.outputFile, "output-file", "-", "Optional output file path. '-', which is the default, means stdout")
+	lsRefsCmd.Flags().StringVar(&lsRefsOutputFile, "output-file", "-", "Optional output file path. '-', which is the default, means stdout")
 }

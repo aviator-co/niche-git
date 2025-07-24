@@ -5,6 +5,7 @@ package nichegit
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 
 	"github.com/aviator-co/niche-git/debug"
@@ -43,7 +44,7 @@ type UpdateRefsOutput struct {
 	Error         string               `json:"error,omitempty"`
 }
 
-func UpdateRefs(client *http.Client, args UpdateRefsArgs) UpdateRefsOutput {
+func UpdateRefs(ctx context.Context, client *http.Client, args UpdateRefsArgs) UpdateRefsOutput {
 	var refUpdates []push.RefUpdate
 	for _, refUpdateCommand := range args.RefUpdateCommands {
 		ru := push.RefUpdate{
@@ -66,7 +67,7 @@ func UpdateRefs(client *http.Client, args UpdateRefsArgs) UpdateRefsOutput {
 	}
 
 	var ret UpdateRefsOutput
-	pushDebugInfo, err := push.Push(args.RepoURL, client, &buf, refUpdates)
+	pushDebugInfo, err := push.Push(ctx, args.RepoURL, client, &buf, refUpdates)
 	ret.PushDebugInfo = &pushDebugInfo
 	if err != nil {
 		ret.Error = err.Error()

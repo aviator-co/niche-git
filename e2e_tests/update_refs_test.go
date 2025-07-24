@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	nichegit "github.com/aviator-co/niche-git"
-	"github.com/aviator-co/niche-git/cmd"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +15,9 @@ func TestUpdateRefs(t *testing.T) {
 	repo := NewTempRepo(t)
 
 	baseHash := repo.CommitFile(t, "file1", "test")
-	output := cmd.UpdateRefs(
+	output := nichegit.UpdateRefs(
+		t.Context(),
+		nil,
 		nichegit.UpdateRefsArgs{
 			RepoURL: "file://" + repo.RepoDir,
 			RefUpdateCommands: []nichegit.RefUpdateCommand{
@@ -37,7 +38,9 @@ func TestUpdateRefs_Conflict_Atomic(t *testing.T) {
 
 	baseHash := repo.CommitFile(t, "file1", "test")
 	repo.Git(t, "switch", "--detach", "HEAD")
-	output := cmd.UpdateRefs(
+	output := nichegit.UpdateRefs(
+		t.Context(),
+		nil,
 		nichegit.UpdateRefsArgs{
 			RepoURL: "file://" + repo.RepoDir,
 			RefUpdateCommands: []nichegit.RefUpdateCommand{
@@ -65,7 +68,9 @@ func TestUpdateRefs_PreconditionMismatch(t *testing.T) {
 	repo.Git(t, "checkout", "-b", "test")
 	anotherHash := repo.CommitFile(t, "file2", "test")
 
-	output := cmd.UpdateRefs(
+	output := nichegit.UpdateRefs(
+		t.Context(),
+		nil,
 		nichegit.UpdateRefsArgs{
 			RepoURL: "file://" + repo.RepoDir,
 			RefUpdateCommands: []nichegit.RefUpdateCommand{
