@@ -6,6 +6,7 @@ package fetch
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
 
 	"github.com/google/gitprotocolio"
@@ -13,33 +14,36 @@ import (
 
 // LsRefs fetches a refs from a remote repository.
 func LsRefs(ctx context.Context, repoURL string, client *http.Client, refPrefixes []string) ([]string, http.Header, error) {
-	rd, headers, err := callProtocolV2(ctx, repoURL, client, createLsRefsRequest(refPrefixes))
-	if err != nil {
-		return nil, headers, err
-	}
-	defer rd.Close()
-	v2Resp := gitprotocolio.NewProtocolV2Response(rd)
 	var refData []string
-	isServerInfo := false
-	for v2Resp.Scan() {
-		chunk := v2Resp.Chunk()
-		if chunk.EndResponse {
-			if isServerInfo {
-				isServerInfo = false
+	retHeaders := &http.Header{}
+	err := callProtocolV2(ctx, repoURL, client, createLsRefsRequest(refPrefixes), func(headers http.Header, rd io.Reader) error {
+		*retHeaders = headers
+		v2Resp := gitprotocolio.NewProtocolV2Response(rd)
+		isServerInfo := false
+		for v2Resp.Scan() {
+			chunk := v2Resp.Chunk()
+			if chunk.EndResponse {
+				if isServerInfo {
+					isServerInfo = false
+					continue
+				}
+				break
+			}
+			if bytes.Equal(chunk.Response, []byte("version 2\n")) {
+				isServerInfo = true
 				continue
 			}
-			break
+			if isServerInfo {
+				continue
+			}
+			refData = append(refData, string(chunk.Response))
 		}
-		if bytes.Equal(chunk.Response, []byte("version 2\n")) {
-			isServerInfo = true
-			continue
-		}
-		if isServerInfo {
-			continue
-		}
-		refData = append(refData, string(chunk.Response))
+		return nil
+	})
+	if err != nil {
+		return nil, *retHeaders, err
 	}
-	return refData, headers, nil
+	return refData, *retHeaders, nil
 }
 
 func createLsRefsRequest(refPrefixes []string) []byte {
