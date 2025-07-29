@@ -21,54 +21,56 @@ import (
 )
 
 func fetchPackfile(ctx context.Context, repoURL string, client *http.Client, body []byte) ([]byte, debug.FetchDebugInfo, error) {
-	rd, headers, err := callProtocolV2(ctx, repoURL, client, body)
-	debugInfo := debug.FetchDebugInfo{ResponseHeaders: headers}
+	packfile := bytes.NewBuffer(nil)
+	debugInfo := debug.FetchDebugInfo{}
+	err := callProtocolV2(ctx, repoURL, client, body, func(headers http.Header, rd io.Reader) error {
+		debugInfo.ResponseHeaders = headers
+		v2Resp := gitprotocolio.NewProtocolV2Response(rd)
+		isPackfile := false
+		for v2Resp.Scan() {
+			chunk := v2Resp.Chunk()
+			if chunk.EndResponse {
+				break
+			}
+			if chunk.Delimiter {
+				continue
+			}
+			if isPackfile {
+				sideband := gitprotocolio.ParseSideBandPacket(chunk.Response)
+				if sideband == nil {
+					return errors.New("unexpected non-sideband packet")
+				}
+				if pkt, ok := sideband.(gitprotocolio.SideBandMainPacket); ok {
+					packfile.Write(pkt.Bytes())
+				}
+				continue
+			}
+			if bytes.Equal(chunk.Response, []byte("shallow-info\n")) {
+				// No use. Skipping.
+				continue
+			}
+			if bytes.HasPrefix(chunk.Response, []byte("shallow ")) {
+				// No use. Skipping.
+				continue
+			}
+			if bytes.Equal(chunk.Response, []byte("packfile\n")) {
+				isPackfile = true
+				continue
+			}
+		}
+		if err := v2Resp.Err(); err != nil {
+			return fmt.Errorf("failed to parse the protov2 response: %v", err)
+		}
+		debugInfo.PackfileSize = packfile.Len()
+		return nil
+	})
 	if err != nil {
 		return nil, debugInfo, err
 	}
-	defer rd.Close()
-	v2Resp := gitprotocolio.NewProtocolV2Response(rd)
-	isPackfile := false
-	packfile := bytes.NewBuffer(nil)
-	for v2Resp.Scan() {
-		chunk := v2Resp.Chunk()
-		if chunk.EndResponse {
-			break
-		}
-		if chunk.Delimiter {
-			continue
-		}
-		if isPackfile {
-			sideband := gitprotocolio.ParseSideBandPacket(chunk.Response)
-			if sideband == nil {
-				return nil, debugInfo, errors.New("unexpected non-sideband packet")
-			}
-			if pkt, ok := sideband.(gitprotocolio.SideBandMainPacket); ok {
-				packfile.Write(pkt.Bytes())
-			}
-			continue
-		}
-		if bytes.Equal(chunk.Response, []byte("shallow-info\n")) {
-			// No use. Skipping.
-			continue
-		}
-		if bytes.HasPrefix(chunk.Response, []byte("shallow ")) {
-			// No use. Skipping.
-			continue
-		}
-		if bytes.Equal(chunk.Response, []byte("packfile\n")) {
-			isPackfile = true
-			continue
-		}
-	}
-	if err := v2Resp.Err(); err != nil {
-		return nil, debugInfo, fmt.Errorf("failed to parse the protov2 response: %v", err)
-	}
-	debugInfo.PackfileSize = packfile.Len()
 	return packfile.Bytes(), debugInfo, nil
 }
 
-func callProtocolV2(ctx context.Context, repoURL string, client *http.Client, body []byte) (io.ReadCloser, http.Header, error) {
+func callProtocolV2(ctx context.Context, repoURL string, client *http.Client, body []byte, parserFunc func(http.Header, io.Reader) error) error {
 	retryCount := gitprotocontext.GitFetchRetryCount(ctx)
 	var errs []error
 	for {
@@ -79,26 +81,38 @@ func callProtocolV2(ctx context.Context, repoURL string, client *http.Client, bo
 		switch {
 		case strings.HasPrefix(repoURL, "http"):
 			rd, headers, err := callProtocolV2HTTP(childCtx, repoURL, client, body)
-			cancel()
-			if err == nil {
-				return rd, headers, nil
+			if err != nil {
+				cancel()
+				errs = append(errs, err)
+			} else if err := parserFunc(headers, rd); err != nil {
+				rd.Close()
+				cancel()
+				errs = append(errs, err)
+			} else {
+				cancel()
+				return nil
 			}
-			errs = append(errs, err)
 		case strings.HasPrefix(repoURL, "file"):
 			rd, err := callProtocolV2File(childCtx, repoURL, body)
-			cancel()
-			if err == nil {
-				return rd, http.Header{}, nil
+			if err != nil {
+				cancel()
+				errs = append(errs, err)
+			} else if err := parserFunc(http.Header{}, rd); err != nil {
+				rd.Close()
+				cancel()
+				errs = append(errs, err)
+			} else {
+				cancel()
+				return nil
 			}
-			errs = append(errs, err)
 		default:
 			cancel()
-			return nil, nil, errors.New("unsupported protocol")
+			return errors.New("unsupported protocol")
 		}
 
 		retryCount--
 		if retryCount <= 0 {
-			return nil, nil, errors.Join(errs...)
+			return errors.Join(errs...)
 		}
 	}
 }
