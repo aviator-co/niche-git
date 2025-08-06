@@ -1,0 +1,74 @@
+// Copyright 2025 Aviator Technologies, Inc.
+// SPDX-License-Identifier: MIT
+
+package e2e_tests
+
+import (
+	"net/http"
+	"strings"
+	"testing"
+
+	nichegit "github.com/aviator-co/niche-git"
+	"github.com/stretchr/testify/require"
+)
+
+func TestLinearRebase(t *testing.T) {
+	repo := NewTempRepo(t)
+
+	baseHash := repo.CommitFile(t, "file", "1")
+	repo.Git(t, "checkout", "-b", "branch1")
+	repo.CommitFile(t, "file", "2")
+	repo.CommitFile(t, "file", "3")
+	repo.Git(t, "checkout", "-b", "branch2")
+	repo.CommitFile(t, "file", "4")
+	repo.CommitFile(t, "file", "5")
+	repo.Git(t, "checkout", "-b", "branch3")
+	repo.CommitFile(t, "file", "6")
+	repo.CommitFile(t, "file", "7")
+	repo.Git(t, "switch", "main")
+	mainHash := repo.CommitFile(t, "unrelated", "unrelated")
+
+	output := nichegit.LinearRebase(
+		t.Context(),
+		http.DefaultClient,
+		nichegit.LinearRebaseArgs{
+			RepoURL:           "file://" + repo.RepoDir,
+			BaseCommit:        baseHash.String(),
+			DestinationCommit: mainHash.String(),
+			Refs: []string{
+				"refs/heads/branch1",
+				"refs/heads/branch2",
+				"refs/heads/branch3",
+			},
+		},
+	)
+	require.Empty(t, output.Error, "Expected no error during linear rebase")
+
+	repo.Git(t, "switch", "branch1")
+	branch1Hash := strings.TrimSpace(repo.Git(t, "rev-parse", "HEAD"))
+	require.Equal(t, "3", repo.ReadFile(t, "file"), "Branch1 should have the latest commit after rebase")
+
+	repo.Git(t, "switch", "branch2")
+	branch2Hash := strings.TrimSpace(repo.Git(t, "rev-parse", "HEAD"))
+	require.Equal(t, "5", repo.ReadFile(t, "file"), "Branch2 should have the latest commit after rebase")
+
+	repo.Git(t, "switch", "branch3")
+	branch3Hash := strings.TrimSpace(repo.Git(t, "rev-parse", "HEAD"))
+	require.Equal(t, "7", repo.ReadFile(t, "file"), "Branch3 should have the latest commit after rebase")
+
+	expected := []*nichegit.LinearRebaseResult{
+		{
+			Ref:        "refs/heads/branch1",
+			CommitHash: branch1Hash,
+		},
+		{
+			Ref:        "refs/heads/branch2",
+			CommitHash: branch2Hash,
+		},
+		{
+			Ref:        "refs/heads/branch3",
+			CommitHash: branch3Hash,
+		},
+	}
+	require.Equal(t, expected, output.LinearRebaseResults, "Expected linear rebase results to match")
+}
