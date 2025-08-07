@@ -86,6 +86,13 @@ var pipeCmd = &cobra.Command{
 			}
 			output := nichegit.GetModifiedFilesRegexpMatches(ctx, client, args)
 			return writeJSON(pipeArg.outputFile, output)
+		case "linear-rebase":
+			args := nichegit.LinearRebaseArgs{}
+			if err := dec.Decode(&args); err != nil {
+				return err
+			}
+			output := nichegit.LinearRebase(ctx, client, args)
+			return writeJSON(pipeArg.outputFile, output)
 		case "ls-refs":
 			args := nichegit.LsRefsArgs{}
 			if err := dec.Decode(&args); err != nil {

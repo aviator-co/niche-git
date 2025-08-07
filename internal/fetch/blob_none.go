@@ -37,9 +37,15 @@ func createBlobNoneFetchRequest(oids []plumbing.Hash, depth int) []byte {
 		&gitprotocolio.ProtocolV2RequestChunk{
 			Argument: []byte("no-progress"),
 		},
-		&gitprotocolio.ProtocolV2RequestChunk{
-			Argument: []byte(fmt.Sprintf("deepen %d", depth)),
-		},
+	)
+	if depth > 0 {
+		chunks = append(chunks,
+			&gitprotocolio.ProtocolV2RequestChunk{
+				Argument: fmt.Appendf(nil, "deepen %d", depth),
+			},
+		)
+	}
+	chunks = append(chunks,
 		&gitprotocolio.ProtocolV2RequestChunk{
 			Argument: []byte("filter blob:none"),
 		},
