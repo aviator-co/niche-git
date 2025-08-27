@@ -15,13 +15,13 @@ import (
 func TestLinearRebase(t *testing.T) {
 	repo := NewTempRepo(t)
 
-	baseHash := repo.CommitFile(t, "file", "1")
+	baseHash1 := repo.CommitFile(t, "file", "1")
 	repo.Git(t, "checkout", "-b", "branch1")
 	repo.CommitFile(t, "file", "2")
-	repo.CommitFile(t, "file", "3")
+	baseHash2 := repo.CommitFile(t, "file", "3")
 	repo.Git(t, "checkout", "-b", "branch2")
 	repo.CommitFile(t, "file", "4")
-	repo.CommitFile(t, "file", "5")
+	baseHash3 := repo.CommitFile(t, "file", "5")
 	repo.Git(t, "checkout", "-b", "branch3")
 	repo.CommitFile(t, "file", "6")
 	repo.CommitFile(t, "file", "7")
@@ -33,12 +33,20 @@ func TestLinearRebase(t *testing.T) {
 		http.DefaultClient,
 		nichegit.LinearRebaseArgs{
 			RepoURL:           "file://" + repo.RepoDir,
-			BaseCommit:        baseHash.String(),
 			DestinationCommit: mainHash.String(),
-			Refs: []string{
-				"refs/heads/branch1",
-				"refs/heads/branch2",
-				"refs/heads/branch3",
+			Refs: []nichegit.LinearRebaseArgRef{
+				{
+					Ref:        "refs/heads/branch1",
+					BaseCommit: baseHash1.String(),
+				},
+				{
+					Ref:        "refs/heads/branch2",
+					BaseCommit: baseHash2.String(),
+				},
+				{
+					Ref:        "refs/heads/branch3",
+					BaseCommit: baseHash3.String(),
+				},
 			},
 		},
 	)
@@ -55,6 +63,8 @@ func TestLinearRebase(t *testing.T) {
 	repo.Git(t, "switch", "branch3")
 	branch3Hash := strings.TrimSpace(repo.Git(t, "rev-parse", "HEAD"))
 	require.Equal(t, "7", repo.ReadFile(t, "file"), "Branch3 should have the latest commit after rebase")
+
+	require.Equal(t, "unrelated", repo.ReadFile(t, "unrelated"), "Should still have the unrelated commit")
 
 	expected := []*nichegit.LinearRebaseResult{
 		{
