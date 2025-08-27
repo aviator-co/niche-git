@@ -23,11 +23,15 @@ import (
 type LinearRebaseArgs struct {
 	RepoURL string `json:"repoURL"`
 
-	BaseCommit        string `json:"mergeBase"`
 	DestinationCommit string `json:"destinationCommit"`
 
 	// Refs is a list of references to rebase. The first element is the first ref to rebase.
-	Refs []string `json:"refs"`
+	Refs []LinearRebaseArgRef `json:"refs"`
+}
+
+type LinearRebaseArgRef struct {
+	Ref        string `json:"ref"`
+	BaseCommit string `json:"baseCommit"`
 }
 
 type LinearRebaseOutput struct {
@@ -48,7 +52,15 @@ type LinearRebaseResult struct {
 }
 
 func LinearRebase(ctx context.Context, client *http.Client, args LinearRebaseArgs) LinearRebaseOutput {
-	refs, lsRefsDebugInfo, err := lsRefs(ctx, args.RepoURL, client, args.Refs)
+	refNames := make([]string, len(args.Refs))
+	for i, ref := range args.Refs {
+		refNames[i] = ref.Ref
+	}
+	refBaseCommits := make(map[string]plumbing.Hash)
+	for _, ref := range args.Refs {
+		refBaseCommits[ref.Ref] = plumbing.NewHash(ref.BaseCommit)
+	}
+	refs, lsRefsDebugInfo, err := lsRefs(ctx, args.RepoURL, client, refNames)
 	if err != nil {
 		return LinearRebaseOutput{LsRefsDebugInfo: &lsRefsDebugInfo, Error: err.Error()}
 	}
@@ -56,13 +68,15 @@ func LinearRebase(ctx context.Context, client *http.Client, args LinearRebaseArg
 	lr := &linearRebase{
 		client:            client,
 		repoURL:           args.RepoURL,
-		baseCommit:        plumbing.NewHash(args.BaseCommit),
-		destinationCommit: args.DestinationCommit,
-		refs:              make(map[string]plumbing.Hash),
+		destinationCommit: plumbing.NewHash(args.DestinationCommit),
+		refs:              make(map[string]linearRebaseArgRef),
 		storage:           memory.NewStorage(),
 	}
 	for _, ref := range refs {
-		lr.refs[ref.Name] = plumbing.NewHash(ref.Hash)
+		lr.refs[ref.Name] = linearRebaseArgRef{
+			baseCommit: refBaseCommits[ref.Name],
+			headCommit: plumbing.NewHash(ref.Hash),
+		}
 	}
 	if len(lr.refs) != len(args.Refs) {
 		return LinearRebaseOutput{
@@ -71,8 +85,9 @@ func LinearRebase(ctx context.Context, client *http.Client, args LinearRebaseArg
 		}
 	}
 	var wantHashes []plumbing.Hash
-	for _, hash := range lr.refs {
-		wantHashes = append(wantHashes, hash)
+	wantHashes = append(wantHashes, lr.destinationCommit)
+	for _, ref := range lr.refs {
+		wantHashes = append(wantHashes, ref.headCommit, ref.baseCommit)
 	}
 	packfilebs, fetchDebugInfo, err := fetch.FetchBlobNonePackfile(ctx, args.RepoURL, client, wantHashes, 0)
 	if err != nil {
@@ -111,7 +126,8 @@ func LinearRebase(ctx context.Context, client *http.Client, args LinearRebaseArg
 }
 
 type branchCommits struct {
-	ref string
+	ref        string
+	baseCommit plumbing.Hash
 	// commits is a list of commits in the branch, ordered from newest to oldest.
 	commits []plumbing.Hash
 
@@ -121,12 +137,16 @@ type branchCommits struct {
 	childBranch  *branchCommits
 }
 
+type linearRebaseArgRef struct {
+	baseCommit plumbing.Hash
+	headCommit plumbing.Hash
+}
+
 type linearRebase struct {
 	client              *http.Client
 	repoURL             string
-	baseCommit          plumbing.Hash
-	destinationCommit   string
-	refs                map[string]plumbing.Hash
+	destinationCommit   plumbing.Hash
+	refs                map[string]linearRebaseArgRef
 	storage             *memory.Storage
 	fetchDebugInfos     []*debug.FetchDebugInfo
 	pushDebugInfo       *debug.PushDebugInfo
@@ -139,9 +159,9 @@ func (lr *linearRebase) run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to find branches: %w", err)
 	}
-	nextBaseCommit := lr.baseCommit
+	nextDestinationCommit := lr.destinationCommit
 	for _, branch := range branches {
-		nextBaseCommit, err = lr.rebaseBranch(ctx, nextBaseCommit, branch)
+		nextDestinationCommit, err = lr.rebaseBranch(ctx, nextDestinationCommit, branch)
 		if err != nil {
 			return fmt.Errorf("failed to rebase branch %s: %w", branch.ref, err)
 		}
@@ -156,12 +176,13 @@ func (lr *linearRebase) run(ctx context.Context) error {
 // branches are ordered from the root branch to the leaf branch.
 func (lr *linearRebase) findBranches() ([]*branchCommits, error) {
 	hashToBranch := make(map[plumbing.Hash]*branchCommits)
-	for ref, hash := range lr.refs {
+	for refName, ref := range lr.refs {
 		branch := &branchCommits{
-			ref:     ref,
-			commits: []plumbing.Hash{hash},
+			ref:        refName,
+			baseCommit: ref.baseCommit,
+			commits:    []plumbing.Hash{ref.headCommit},
 		}
-		hashToBranch[hash] = branch
+		hashToBranch[ref.headCommit] = branch
 	}
 	for hash, branch := range hashToBranch {
 		currentHash := hash
@@ -182,7 +203,7 @@ func (lr *linearRebase) findBranches() ([]*branchCommits, error) {
 				parentBranch.childBranch = branch
 				break
 			}
-			if parentHash == lr.baseCommit {
+			if parentHash == branch.baseCommit {
 				// This is the base commit, so we can stop here.
 				break
 			}
@@ -318,7 +339,7 @@ func (lr *linearRebase) push(ctx context.Context) error {
 	}
 	var refUpdates []push.RefUpdate
 	for _, result := range lr.linearRebaseResults {
-		oldHash := lr.refs[result.Ref]
+		oldHash := lr.refs[result.Ref].headCommit
 		refUpdates = append(refUpdates, push.RefUpdate{
 			Name:    plumbing.ReferenceName(result.Ref),
 			OldHash: &oldHash,
