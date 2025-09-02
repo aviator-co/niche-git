@@ -9,8 +9,8 @@ require (
 	github.com/google/gitprotocolio v0.0.0-20210704173409-b5a56823ae52
 	github.com/google/go-cmp v0.7.0
 	github.com/kr/text v0.2.0
-	github.com/spf13/cobra v1.9.1
-	github.com/stretchr/testify v1.11.0
+	github.com/spf13/cobra v1.10.1
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
@@ -27,7 +27,7 @@ require (
 	github.com/pjbgf/sha1cd v0.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
-	github.com/spf13/pflag v1.0.7 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/net v0.42.0 // indirect
