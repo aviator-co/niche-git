@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/aviator-co/niche-git/debug"
 	"github.com/aviator-co/niche-git/internal/fetch"
@@ -78,10 +79,16 @@ func LinearRebase(ctx context.Context, client *http.Client, args LinearRebaseArg
 			headCommit: plumbing.NewHash(ref.Hash),
 		}
 	}
-	if len(lr.refs) != len(args.Refs) {
+	var missingRefs []string
+	for _, ref := range args.Refs {
+		if _, ok := lr.refs[ref.Ref]; !ok {
+			missingRefs = append(missingRefs, ref.Ref)
+		}
+	}
+	if len(missingRefs) > 0 {
 		return LinearRebaseOutput{
 			LsRefsDebugInfo: &lsRefsDebugInfo,
-			Error:           "The number of refs returned does not match the number of refs requested",
+			Error:           fmt.Sprintf("the following refs were not found: %s", strings.Join(missingRefs, ", ")),
 		}
 	}
 	var wantHashes []plumbing.Hash
@@ -94,7 +101,7 @@ func LinearRebase(ctx context.Context, client *http.Client, args LinearRebaseArg
 		return LinearRebaseOutput{
 			LsRefsDebugInfo: &lsRefsDebugInfo,
 			FetchDebugInfos: []*debug.FetchDebugInfo{&fetchDebugInfo},
-			Error:           "The number of refs returned does not match the number of refs requested",
+			Error:           fmt.Sprintf("failed to fetch packfile: %v", err),
 		}
 	}
 	parser, err := packfile.NewParserWithStorage(packfile.NewScanner(bytes.NewReader(packfilebs)), lr.storage)
