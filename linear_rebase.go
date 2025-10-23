@@ -222,7 +222,11 @@ func (lr *linearRebase) findBranches() ([]*branchCommits, error) {
 		return nil, fmt.Errorf("no root branches found")
 	}
 	if len(branches) > 1 {
-		return nil, fmt.Errorf("multiple root branches found: %v", branches)
+		var names []string
+		for _, b := range branches {
+			names = append(names, b.ref)
+		}
+		return nil, fmt.Errorf("multiple root branches found: %q", names)
 	}
 	currentBranch := branches[0]
 	for currentBranch.childBranch != nil {
