@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/aviator-co/niche-git/debug"
 	"github.com/aviator-co/niche-git/internal/fetch"
@@ -65,30 +64,35 @@ func LinearRebase(ctx context.Context, client *http.Client, args LinearRebaseArg
 	if err != nil {
 		return LinearRebaseOutput{LsRefsDebugInfo: &lsRefsDebugInfo, Error: err.Error()}
 	}
+	refMap := make(map[string]*linearRebaseArgRef)
+	for _, ref := range refs {
+		refMap[ref.Name] = &linearRebaseArgRef{
+			ref:        ref.Name,
+			baseCommit: refBaseCommits[ref.Name],
+			headCommit: plumbing.NewHash(ref.Hash),
+		}
+	}
+	if len(refMap) != len(args.Refs) {
+		return LinearRebaseOutput{
+			LsRefsDebugInfo: &lsRefsDebugInfo,
+			Error:           "The number of refs returned does not match the number of refs requested",
+		}
+	}
 
 	lr := &linearRebase{
 		client:            client,
 		repoURL:           args.RepoURL,
 		destinationCommit: plumbing.NewHash(args.DestinationCommit),
-		refs:              make(map[string]linearRebaseArgRef),
 		storage:           memory.NewStorage(),
 	}
-	for _, ref := range refs {
-		lr.refs[ref.Name] = linearRebaseArgRef{
-			baseCommit: refBaseCommits[ref.Name],
-			headCommit: plumbing.NewHash(ref.Hash),
-		}
-	}
-	var missingRefs []string
-	for _, ref := range args.Refs {
-		if _, ok := lr.refs[ref.Ref]; !ok {
-			missingRefs = append(missingRefs, ref.Ref)
-		}
-	}
-	if len(missingRefs) > 0 {
-		return LinearRebaseOutput{
-			LsRefsDebugInfo: &lsRefsDebugInfo,
-			Error:           fmt.Sprintf("the following refs were not found: %s", strings.Join(missingRefs, ", ")),
+	for _, argRef := range args.Refs {
+		if ref, ok := refMap[argRef.Ref]; !ok {
+			return LinearRebaseOutput{
+				LsRefsDebugInfo: &lsRefsDebugInfo,
+				Error:           fmt.Sprintf("Ref %s not found in the repository", argRef.Ref),
+			}
+		} else {
+			lr.refs = append(lr.refs, ref)
 		}
 	}
 	var wantHashes []plumbing.Hash
@@ -137,14 +141,10 @@ type branchCommits struct {
 	baseCommit plumbing.Hash
 	// commits is a list of commits in the branch, ordered from newest to oldest.
 	commits []plumbing.Hash
-
-	// Since linear rebase expects a linear history, there's at most one parent and at most one
-	// child branch.
-	parentBranch *branchCommits
-	childBranch  *branchCommits
 }
 
 type linearRebaseArgRef struct {
+	ref        string
 	baseCommit plumbing.Hash
 	headCommit plumbing.Hash
 }
@@ -153,7 +153,7 @@ type linearRebase struct {
 	client              *http.Client
 	repoURL             string
 	destinationCommit   plumbing.Hash
-	refs                map[string]linearRebaseArgRef
+	refs                []*linearRebaseArgRef
 	storage             *memory.Storage
 	fetchDebugInfos     []*debug.FetchDebugInfo
 	pushDebugInfo       *debug.PushDebugInfo
@@ -183,12 +183,14 @@ func (lr *linearRebase) run(ctx context.Context) error {
 // branches are ordered from the root branch to the leaf branch.
 func (lr *linearRebase) findBranches() ([]*branchCommits, error) {
 	hashToBranch := make(map[plumbing.Hash]*branchCommits)
-	for refName, ref := range lr.refs {
+	var branches []*branchCommits
+	for _, ref := range lr.refs {
 		branch := &branchCommits{
-			ref:        refName,
+			ref:        ref.ref,
 			baseCommit: ref.baseCommit,
 			commits:    []plumbing.Hash{ref.headCommit},
 		}
+		branches = append(branches, branch)
 		hashToBranch[ref.headCommit] = branch
 	}
 	for hash, branch := range hashToBranch {
@@ -202,14 +204,6 @@ func (lr *linearRebase) findBranches() ([]*branchCommits, error) {
 				return nil, fmt.Errorf("branch %s has multiple parents: %s", branch.ref, commit.ParentHashes)
 			}
 			parentHash := commit.ParentHashes[0]
-			if parentBranch, ok := hashToBranch[parentHash]; ok {
-				if parentBranch.childBranch != nil {
-					return nil, fmt.Errorf("branch %s has multiple children: %s", parentBranch.ref, branch.ref)
-				}
-				branch.parentBranch = parentBranch
-				parentBranch.childBranch = branch
-				break
-			}
 			if parentHash == branch.baseCommit {
 				// This is the base commit, so we can stop here.
 				break
@@ -217,24 +211,6 @@ func (lr *linearRebase) findBranches() ([]*branchCommits, error) {
 			branch.commits = append(branch.commits, parentHash)
 			currentHash = parentHash
 		}
-	}
-	var branches []*branchCommits
-	for _, branch := range hashToBranch {
-		if branch.parentBranch == nil {
-			// This is a root branch.
-			branches = append(branches, branch)
-		}
-	}
-	if len(branches) == 0 {
-		return nil, fmt.Errorf("no root branches found")
-	}
-	if len(branches) > 1 {
-		return nil, fmt.Errorf("multiple root branches found: %v", branches)
-	}
-	currentBranch := branches[0]
-	for currentBranch.childBranch != nil {
-		branches = append(branches, currentBranch.childBranch)
-		currentBranch = currentBranch.childBranch
 	}
 	return branches, nil
 }
@@ -345,8 +321,8 @@ func (lr *linearRebase) push(ctx context.Context) error {
 		return fmt.Errorf("failed to create a packfile: %v", err)
 	}
 	var refUpdates []push.RefUpdate
-	for _, result := range lr.linearRebaseResults {
-		oldHash := lr.refs[result.Ref].headCommit
+	for i, result := range lr.linearRebaseResults {
+		oldHash := lr.refs[i].headCommit
 		refUpdates = append(refUpdates, push.RefUpdate{
 			Name:    plumbing.ReferenceName(result.Ref),
 			OldHash: &oldHash,
