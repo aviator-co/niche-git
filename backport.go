@@ -45,9 +45,10 @@ type BackportOutput struct {
 
 func Backport(ctx context.Context, client *http.Client, args BackportArgs) BackportOutput {
 	s := &backport{
-		client:  client,
-		args:    args,
-		storage: memory.NewStorage(),
+		client:     client,
+		args:       args,
+		storage:    memory.NewStorage(),
+		newObjects: make(map[plumbing.Hash]bool),
 	}
 	err := s.run(ctx)
 	output := BackportOutput{
@@ -67,7 +68,7 @@ type backport struct {
 	storage         *memory.Storage
 	fetchDebugInfos []*debug.FetchDebugInfo
 	pushDebugInfo   *debug.PushDebugInfo
-	newObjects      []plumbing.Hash
+	newObjects      map[plumbing.Hash]bool
 	commandResults  []BackportCommandResult
 }
 
@@ -202,16 +203,20 @@ func (s *backport) cherrypickCommit(ctx context.Context, currentCommitHash plumb
 		return result, fmt.Errorf("failed to set the commit: %v", err)
 	}
 	result.CommitHash = newCommitHash.String()
-	s.newObjects = append(s.newObjects, newCommitHash)
-	s.newObjects = append(s.newObjects, mergeResult.NewHashes...)
-	s.newObjects = append(s.newObjects, resolver.NewHashes...)
+	s.newObjects[newCommitHash] = true
+	for _, h := range mergeResult.NewHashes {
+		s.newObjects[h] = true
+	}
+	for _, h := range resolver.NewHashes {
+		s.newObjects[h] = true
+	}
 	return result, nil
 }
 
 func (s *backport) push(ctx context.Context, commitHash plumbing.Hash) error {
 	var buf bytes.Buffer
 	packEncoder := packfile.NewEncoder(&buf, s.storage, false)
-	if _, err := packEncoder.Encode(s.newObjects, 0); err != nil {
+	if _, err := packEncoder.Encode(slices.Collect(maps.Keys(s.newObjects)), 0); err != nil {
 		return nil
 	}
 

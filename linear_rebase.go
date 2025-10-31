@@ -7,7 +7,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 
 	"github.com/aviator-co/niche-git/debug"
 	"github.com/aviator-co/niche-git/internal/fetch"
@@ -84,6 +86,7 @@ func LinearRebase(ctx context.Context, client *http.Client, args LinearRebaseArg
 		repoURL:           args.RepoURL,
 		destinationCommit: plumbing.NewHash(args.DestinationCommit),
 		storage:           memory.NewStorage(),
+		newObjectHashes:   make(map[plumbing.Hash]bool),
 	}
 	for _, argRef := range args.Refs {
 		if ref, ok := refMap[argRef.Ref]; !ok {
@@ -158,7 +161,7 @@ type linearRebase struct {
 	fetchDebugInfos     []*debug.FetchDebugInfo
 	pushDebugInfo       *debug.PushDebugInfo
 	linearRebaseResults []*LinearRebaseResult
-	newObjectHashes     []plumbing.Hash
+	newObjectHashes     map[plumbing.Hash]bool
 }
 
 func (lr *linearRebase) run(ctx context.Context) error {
@@ -308,16 +311,20 @@ func (lr *linearRebase) putCommit(ctx context.Context, destCommitHash, targetCom
 	if err != nil {
 		return plumbing.ZeroHash, fmt.Errorf("failed to store commit: %v", err)
 	}
-	lr.newObjectHashes = append(lr.newObjectHashes, newCommitHash)
-	lr.newObjectHashes = append(lr.newObjectHashes, mergeResult.NewHashes...)
-	lr.newObjectHashes = append(lr.newObjectHashes, resolver.NewHashes...)
+	lr.newObjectHashes[newCommitHash] = true
+	for _, h := range mergeResult.NewHashes {
+		lr.newObjectHashes[h] = true
+	}
+	for _, h := range resolver.NewHashes {
+		lr.newObjectHashes[h] = true
+	}
 	return newCommitHash, nil
 }
 
 func (lr *linearRebase) push(ctx context.Context) error {
 	var buf bytes.Buffer
 	packEncoder := packfile.NewEncoder(&buf, lr.storage, false)
-	if _, err := packEncoder.Encode(lr.newObjectHashes, 0); err != nil {
+	if _, err := packEncoder.Encode(slices.Collect(maps.Keys(lr.newObjectHashes)), 0); err != nil {
 		return fmt.Errorf("failed to create a packfile: %v", err)
 	}
 	var refUpdates []push.RefUpdate
