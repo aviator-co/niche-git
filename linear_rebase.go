@@ -277,7 +277,7 @@ func (lr *linearRebase) putCommit(ctx context.Context, destCommitHash, targetCom
 				return plumbing.ZeroHash, fmt.Errorf("failed to parse packfile: %v", err)
 			}
 		}
-		mergeResult, err = merge.MergeTree(lr.storage, treeTarget, treeDest, treeTargetParent, collector.Resolve)
+		mergeResult, err = merge.MergeTree(lr.storage, treeTarget, treeDest, treeTargetParent, resolver.Resolve)
 		if err != nil {
 			return plumbing.ZeroHash, fmt.Errorf("failed to merge the trees after fetching blobs: %v", err)
 		}
