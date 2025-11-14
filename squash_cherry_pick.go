@@ -8,7 +8,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/aviator-co/niche-git/debug"
@@ -228,13 +230,18 @@ func pushSquashCherryPick(
 	}
 	cpResult.CommitHash = commitHash
 
-	newHashes := []plumbing.Hash{commitHash}
-	newHashes = append(newHashes, mergeResult.NewHashes...)
-	newHashes = append(newHashes, resolver.NewHashes...)
+	newHashes := make(map[plumbing.Hash]bool)
+	newHashes[commitHash] = true
+	for _, h := range mergeResult.NewHashes {
+		newHashes[h] = true
+	}
+	for _, h := range resolver.NewHashes {
+		newHashes[h] = true
+	}
 
 	var buf bytes.Buffer
 	packEncoder := packfile.NewEncoder(&buf, storage, false)
-	if _, err := packEncoder.Encode(newHashes, 0); err != nil {
+	if _, err := packEncoder.Encode(slices.Collect(maps.Keys(newHashes)), 0); err != nil {
 		return cpResult, fetchDebugInfo, blobFetchDebugInfo, nil, fmt.Errorf("failed to create a packfile: %v", err)
 	}
 
