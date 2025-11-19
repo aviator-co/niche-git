@@ -87,6 +87,7 @@ func (gmb *getMergeBase) fetch(ctx context.Context) error {
 		gmb.client,
 		gmb.commitHashes,
 		nil,
+		0,
 	)
 	gmb.fetchDebugInfos = append(gmb.fetchDebugInfos, &fetchDebugInfo)
 	if err != nil {

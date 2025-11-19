@@ -51,6 +51,13 @@ var pipeCmd = &cobra.Command{
 		client := &http.Client{Transport: &authnRoundtripper{}}
 
 		switch pipeArg.command {
+		case "get-branching-point":
+			args := nichegit.GetBranchingPointArgs{}
+			if err := dec.Decode(&args); err != nil {
+				return err
+			}
+			output := nichegit.GetBranchingPoint(ctx, client, args)
+			return writeJSON(pipeArg.outputFile, output)
 		case "get-commits":
 			args := nichegit.GetCommitsArgs{}
 			if err := dec.Decode(&args); err != nil {

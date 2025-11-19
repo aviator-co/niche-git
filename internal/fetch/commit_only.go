@@ -6,6 +6,7 @@ package fetch
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/aviator-co/niche-git/debug"
@@ -14,11 +15,11 @@ import (
 )
 
 // FetchCommitOnlyPackfile fetches a packfile from a remote repository with only commit objects.
-func FetchCommitOnlyPackfile(ctx context.Context, repoURL string, client *http.Client, wantOids, haveOids []plumbing.Hash) ([]byte, debug.FetchDebugInfo, error) {
-	return fetchPackfile(ctx, repoURL, client, createCommitOnlyFetchRequest(wantOids, haveOids))
+func FetchCommitOnlyPackfile(ctx context.Context, repoURL string, client *http.Client, wantOids, haveOids []plumbing.Hash, depth int) ([]byte, debug.FetchDebugInfo, error) {
+	return fetchPackfile(ctx, repoURL, client, createCommitOnlyFetchRequest(wantOids, haveOids, depth))
 }
 
-func createCommitOnlyFetchRequest(wantOids, haveOids []plumbing.Hash) []byte {
+func createCommitOnlyFetchRequest(wantOids, haveOids []plumbing.Hash, depth int) []byte {
 	chunks := []*gitprotocolio.ProtocolV2RequestChunk{
 		{
 			Command: "fetch",
@@ -44,6 +45,15 @@ func createCommitOnlyFetchRequest(wantOids, haveOids []plumbing.Hash) []byte {
 		&gitprotocolio.ProtocolV2RequestChunk{
 			Argument: []byte("filter tree:0"),
 		},
+	)
+	if depth > 0 {
+		chunks = append(chunks,
+			&gitprotocolio.ProtocolV2RequestChunk{
+				Argument: fmt.Appendf(nil, "deepen %d", depth),
+			},
+		)
+	}
+	chunks = append(chunks,
 		&gitprotocolio.ProtocolV2RequestChunk{
 			Argument: []byte("done"),
 		},

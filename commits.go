@@ -81,7 +81,7 @@ func GetCommits(ctx context.Context, client *http.Client, args GetCommitsArgs) G
 }
 
 func FetchCommits(ctx context.Context, repoURL string, client *http.Client, wantCommitHashes, haveCommitHashes []plumbing.Hash) ([]*CommitInfo, debug.FetchDebugInfo, error) {
-	packfilebs, debugInfo, err := fetch.FetchCommitOnlyPackfile(ctx, repoURL, client, wantCommitHashes, haveCommitHashes)
+	packfilebs, debugInfo, err := fetch.FetchCommitOnlyPackfile(ctx, repoURL, client, wantCommitHashes, haveCommitHashes, 0)
 	if err != nil {
 		return nil, debugInfo, err
 	}
