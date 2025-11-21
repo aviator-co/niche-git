@@ -28,6 +28,7 @@ type BackportArgs struct {
 	BackportCommits []string `json:"backportCommits"`
 	Ref             string   `json:"ref"`
 	CurrentRefHash  string   `json:"currentRefHash"`
+	AbortOnConflict bool     `json:"abortOnConflict"`
 }
 
 type BackportCommandResult struct {
@@ -148,7 +149,7 @@ func (s *backport) cherrypickCommit(ctx context.Context, currentCommitHash plumb
 	if err != nil {
 		return BackportCommandResult{}, fmt.Errorf("failed to merge the trees: %v", err)
 	}
-	resolver := resolvediff3.NewDiff3Resolver(s.storage, "Squash content", "Base content", ".rej", "")
+	resolver := resolvediff3.NewDiff3Resolver(s.storage, "Backport content", "Base content", ".rej", "")
 	if len(mergeResult.FilesConflict) != 0 {
 		// Need to fetch blobs and resolve the conflicts.
 		if len(collector.blobHashes) > 0 {
@@ -184,7 +185,7 @@ func (s *backport) cherrypickCommit(ctx context.Context, currentCommitHash plumb
 		ConflictResolvedFiles:   resolver.ConflictResolvedFiles,
 		ConflictUnresolvedFiles: conflictedFiles,
 	}
-	if len(conflictedFiles) > 0 {
+	if s.args.AbortOnConflict && len(conflictedFiles) > 0 {
 		return result, fmt.Errorf("conflict found")
 	}
 	commit := &object.Commit{
