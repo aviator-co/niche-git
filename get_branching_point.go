@@ -63,8 +63,10 @@ func GetBranchingPoint(ctx context.Context, client *http.Client, args GetBranchi
 	}
 	err := gbp.run(ctx)
 	output := GetBranchingPointOutput{
-		BranchingPointHash: gbp.branchingPointHash.String(),
-		FetchDebugInfos:    gbp.fetchDebugInfos,
+		FetchDebugInfos: gbp.fetchDebugInfos,
+	}
+	if !gbp.branchingPointHash.IsZero() {
+		output.BranchingPointHash = gbp.branchingPointHash.String()
 	}
 	if err != nil {
 		output.Error = err.Error()
