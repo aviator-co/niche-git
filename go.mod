@@ -5,11 +5,11 @@ go 1.24.0
 require (
 	github.com/bmatcuk/doublestar v1.3.4
 	github.com/epiclabs-io/diff3 v0.0.0-20241115194849-280ec18688b6
-	github.com/go-git/go-git/v5 v5.16.3
+	github.com/go-git/go-git/v5 v5.16.4
 	github.com/google/gitprotocolio v0.0.0-20210704173409-b5a56823ae52
 	github.com/google/go-cmp v0.7.0
 	github.com/kr/text v0.2.0
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 )
 
