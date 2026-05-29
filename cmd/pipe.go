@@ -135,6 +135,13 @@ var pipeCmd = &cobra.Command{
 			}
 			output := nichegit.Backport(ctx, client, args)
 			return writeJSON(pipeArg.outputFile, output)
+		case "merge-tree":
+			args := nichegit.MergeTreeArgs{}
+			if err := dec.Decode(&args); err != nil {
+				return err
+			}
+			output := nichegit.MergeTree(ctx, client, args)
+			return writeJSON(pipeArg.outputFile, output)
 		}
 
 		return fmt.Errorf("unknown command: %s", pipeArg.command)
