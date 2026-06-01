@@ -83,6 +83,49 @@ func TestLinearRebase(t *testing.T) {
 	require.Equal(t, expected, output.LinearRebaseResults, "Expected linear rebase results to match")
 }
 
+func TestLinearRebase_RefPrefixCollision(t *testing.T) {
+	repo := NewTempRepo(t)
+
+	baseHash := repo.CommitFile(t, "file", "1")
+	repo.Git(t, "checkout", "-b", "branch")
+	repo.CommitFile(t, "file", "2")
+	// Sibling branch whose name has "branch" as a string prefix. ls-refs matches by
+	// ref-prefix, so requesting "refs/heads/branch" also returns "refs/heads/branch-extra".
+	repo.Git(t, "checkout", "-b", "branch-extra")
+	repo.CommitFile(t, "other", "other")
+	repo.Git(t, "switch", "main")
+	mainHash := repo.CommitFile(t, "unrelated", "unrelated")
+
+	output := nichegit.LinearRebase(
+		t.Context(),
+		http.DefaultClient,
+		nichegit.LinearRebaseArgs{
+			RepoURL:           "file://" + repo.RepoDir,
+			DestinationCommit: mainHash.String(),
+			Refs: []nichegit.LinearRebaseArgRef{
+				{
+					Ref:        "refs/heads/branch",
+					BaseCommit: baseHash.String(),
+				},
+			},
+		},
+	)
+	require.Empty(t, output.Error, "ref-prefix collision should not fail linear rebase")
+
+	repo.Git(t, "switch", "branch")
+	branchHash := strings.TrimSpace(repo.Git(t, "rev-parse", "HEAD"))
+	require.Equal(t, "2", repo.ReadFile(t, "file"), "Branch should have the latest commit after rebase")
+	require.Equal(t, "unrelated", repo.ReadFile(t, "unrelated"), "Branch should be rebased onto the destination")
+
+	expected := []*nichegit.LinearRebaseResult{
+		{
+			Ref:        "refs/heads/branch",
+			CommitHash: branchHash,
+		},
+	}
+	require.Equal(t, expected, output.LinearRebaseResults, "Expected only the exact ref to be rebased")
+}
+
 func TestLinearRebase_NewCommits(t *testing.T) {
 	repo := NewTempRepo(t)
 

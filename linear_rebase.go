@@ -66,8 +66,18 @@ func LinearRebase(ctx context.Context, client *http.Client, args LinearRebaseArg
 	if err != nil {
 		return LinearRebaseOutput{LsRefsDebugInfo: &lsRefsDebugInfo, Error: err.Error()}
 	}
+	// ls-refs filters by ref-prefix (the only filter git protocol v2 offers), so a
+	// requested ref name that is a string prefix of another branch (e.g. "foo" also
+	// matches "foo-bar") brings back refs we didn't ask for. Keep only exact matches.
+	requestedRefs := make(map[string]bool, len(args.Refs))
+	for _, ref := range args.Refs {
+		requestedRefs[ref.Ref] = true
+	}
 	refMap := make(map[string]*linearRebaseArgRef)
 	for _, ref := range refs {
+		if !requestedRefs[ref.Name] {
+			continue
+		}
 		refMap[ref.Name] = &linearRebaseArgRef{
 			ref:        ref.Name,
 			baseCommit: refBaseCommits[ref.Name],
