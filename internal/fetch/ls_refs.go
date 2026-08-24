@@ -6,6 +6,7 @@ package fetch
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -16,7 +17,9 @@ import (
 func LsRefs(ctx context.Context, repoURL string, client *http.Client, refPrefixes []string) ([]string, http.Header, error) {
 	var refData []string
 	retHeaders := &http.Header{}
-	err := callProtocolV2(ctx, repoURL, client, createLsRefsRequest(refPrefixes), func(headers http.Header, rd io.Reader) error {
+	_, err := callProtocolV2(ctx, repoURL, client, createLsRefsRequest(refPrefixes), func(headers http.Header, rd io.Reader) error {
+		// Runs once per attempt; each attempt re-advertises every ref.
+		refData = nil
 		*retHeaders = headers
 		v2Resp := gitprotocolio.NewProtocolV2Response(rd)
 		isServerInfo := false
@@ -37,6 +40,9 @@ func LsRefs(ctx context.Context, repoURL string, client *http.Client, refPrefixe
 				continue
 			}
 			refData = append(refData, string(chunk.Response))
+		}
+		if err := v2Resp.Err(); err != nil {
+			return fmt.Errorf("failed to parse the protov2 response: %v", err)
 		}
 		return nil
 	})

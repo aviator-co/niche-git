@@ -8,6 +8,8 @@ type FetchDebugInfo struct {
 	ResponseHeaders map[string][]string `json:"responseHeaders"`
 	// PackfileSize is the size of the packfile in bytes.
 	PackfileSize int `json:"packfileSize"`
+	// RetriedErrors are the failures of attempts that a later attempt recovered from.
+	RetriedErrors []string `json:"retriedErrors,omitempty"`
 }
 
 type LsRefsDebugInfo struct {

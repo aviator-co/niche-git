@@ -23,7 +23,9 @@ import (
 func fetchPackfile(ctx context.Context, repoURL string, client *http.Client, body []byte) ([]byte, debug.FetchDebugInfo, error) {
 	packfile := bytes.NewBuffer(nil)
 	debugInfo := debug.FetchDebugInfo{}
-	err := callProtocolV2(ctx, repoURL, client, body, func(headers http.Header, rd io.Reader) error {
+	retried, err := callProtocolV2(ctx, repoURL, client, body, func(headers http.Header, rd io.Reader) error {
+		// Runs once per attempt; a failed attempt's bytes must not survive into the next.
+		packfile.Reset()
 		debugInfo.ResponseHeaders = headers
 		v2Resp := gitprotocolio.NewProtocolV2Response(rd)
 		isPackfile := false
@@ -64,13 +66,18 @@ func fetchPackfile(ctx context.Context, repoURL string, client *http.Client, bod
 		debugInfo.PackfileSize = packfile.Len()
 		return nil
 	})
+	for _, e := range retried {
+		debugInfo.RetriedErrors = append(debugInfo.RetriedErrors, e.Error())
+	}
 	if err != nil {
 		return nil, debugInfo, err
 	}
 	return packfile.Bytes(), debugInfo, nil
 }
 
-func callProtocolV2(ctx context.Context, repoURL string, client *http.Client, body []byte, parserFunc func(http.Header, io.Reader) error) error {
+// callProtocolV2 returns the errors of any attempts it retried past, alongside the
+// final result.
+func callProtocolV2(ctx context.Context, repoURL string, client *http.Client, body []byte, parserFunc func(http.Header, io.Reader) error) ([]error, error) {
 	retryCount := gitprotocontext.GitFetchRetryCount(ctx)
 	var errs []error
 	for {
@@ -90,7 +97,7 @@ func callProtocolV2(ctx context.Context, repoURL string, client *http.Client, bo
 				errs = append(errs, err)
 			} else {
 				cancel()
-				return nil
+				return errs, nil
 			}
 		case strings.HasPrefix(repoURL, "file"):
 			rd, err := callProtocolV2File(childCtx, repoURL, body)
@@ -103,16 +110,16 @@ func callProtocolV2(ctx context.Context, repoURL string, client *http.Client, bo
 				errs = append(errs, err)
 			} else {
 				cancel()
-				return nil
+				return errs, nil
 			}
 		default:
 			cancel()
-			return errors.New("unsupported protocol")
+			return errs, errors.New("unsupported protocol")
 		}
 
 		retryCount--
 		if retryCount <= 0 {
-			return errors.Join(errs...)
+			return errs, errors.Join(errs...)
 		}
 	}
 }
