@@ -75,7 +75,10 @@ func GetModifiedFilesRegexpMatches(ctx context.Context, client *http.Client, arg
 		if value.FileContentPattern != "" {
 			pattern, err := regexp.Compile(value.FileContentPattern)
 			if err != nil {
-				return GetModifiedFilesRegexpMatchesOutput{Error: err.Error()}
+				return GetModifiedFilesRegexpMatchesOutput{
+					Files: []*ModifiedFile{},
+					Error: err.Error(),
+				}
 			}
 			v.FileContentPattern = pattern
 		}
@@ -90,6 +93,10 @@ func GetModifiedFilesRegexpMatches(ctx context.Context, client *http.Client, arg
 		plumbing.NewHash(args.CommitHash2),
 		patterns,
 	)
+	if files == nil {
+		// Always create an empty slice for JSON output.
+		files = []*ModifiedFile{}
+	}
 	output := GetModifiedFilesRegexpMatchesOutput{
 		Files:              files,
 		FetchDebugInfo:     &fetchDebugInfo,
