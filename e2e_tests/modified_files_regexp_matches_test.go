@@ -84,3 +84,23 @@ func TestModifiedFilesRegexpMatches(t *testing.T) {
 		},
 	}, output.Files)
 }
+
+func TestModifiedFilesRegexpMatchesNonNilFilesOnError(t *testing.T) {
+	repo := NewTempRepo(t)
+	baseHash := repo.CommitFile(t, "a.txt", "")
+
+	output := nichegit.GetModifiedFilesRegexpMatches(
+		t.Context(),
+		nil,
+		nichegit.GetModifiedFilesRegexpMatchesArgs{
+			RepoURL:     "file://" + repo.RepoDir,
+			CommitHash1: baseHash.String(),
+			CommitHash2: "0123456789abcdef0123456789abcdef01234567",
+			Patterns: map[string]nichegit.GetModifiedFilesPattern{
+				"all": {FilePathPatterns: []string{".*"}},
+			},
+		},
+	)
+	require.NotEmpty(t, output.Error)
+	require.NotNil(t, output.Files)
+}
