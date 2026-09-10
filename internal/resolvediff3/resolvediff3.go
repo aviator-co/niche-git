@@ -117,7 +117,14 @@ func (r *Diff3Resolver) mergeDiff3(blob1, blob2, blobBase plumbing.EncodedObject
 	}
 	defer rdBase.Close()
 
-	mr, err := diff3.Merge(rd1, rdBase, rd2, false, r.sideALabel, r.sideBLabel)
+	// Algorithm's zero value is LCS, which gets very slow on files with many
+	// repeated lines, so it has to stay set explicitly.
+	mr, err := diff3.MergeWithOptions(rd1, rdBase, rd2, diff3.MergeOptions{
+		Algorithm:             diff3.DiffAlgorithmMyers,
+		ExcludeFalseConflicts: true,
+		LabelA:                r.sideALabel,
+		LabelB:                r.sideBLabel,
+	})
 	if err != nil {
 		return plumbing.ZeroHash, false, fmt.Errorf("cannot run diff3 merge: %v", err)
 	}

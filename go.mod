@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/bmatcuk/doublestar v1.3.4
-	github.com/epiclabs-io/diff3 v0.0.0-20241115194849-280ec18688b6
+	github.com/epiclabs-io/diff3 v0.0.0-20260520111523-3b1669897fb1
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/google/gitprotocolio v0.0.0-20210704173409-b5a56823ae52
 	github.com/google/go-cmp v0.7.0
