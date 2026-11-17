@@ -4,7 +4,6 @@ go 1.27.4
 
 require (
 	github.com/bmatcuk/doublestar v1.3.4
-	github.com/bmatcuk/doublestar/v4 v4.10.4
 	github.com/epiclabs-io/diff3 v0.0.0-20260520111523-3b1669897fb1
 	github.com/go-git/go-git/v5 v5.19.3
 	github.com/google/gitprotocolio v0.0.0-20210704173409-b5a56823ae52
